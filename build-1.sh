@@ -93,16 +93,19 @@ docker compose run --rm backend alembic upgrade head
 # ── 8. SSL 证书 ────────────────────────────────────────────────────────────────
 CERT_PATH="/etc/letsencrypt/live/${DOMAIN}/fullchain.pem"
 
-if docker compose run --rm certbot sh -c "[ -f '${CERT_PATH}' ]" 2>/dev/null; then
+if [ -f "/var/lib/docker/volumes/jvs_letsencrypt/_data/live/${DOMAIN}/fullchain.pem" ] 2>/dev/null ||
+   docker run --rm -v jvs_letsencrypt:/etc/letsencrypt alpine \
+       sh -c "[ -f '/etc/letsencrypt/live/${DOMAIN}/fullchain.pem' ]" 2>/dev/null; then
     info "SSL certificate already exists, skipping issuance."
 else
-    info "Obtaining SSL certificate for ${DOMAIN}..."
-    # Start HTTP-only nginx temporarily for ACME challenge
-    docker compose --profile plan1 up -d nginx-plan1
-    sleep 3
-    docker compose run --rm certbot certonly \
-        --webroot \
-        --webroot-path /var/www/certbot \
+    info "Obtaining SSL certificate for ${DOMAIN} (first-time, standalone mode)..."
+    # 首次申请：nginx 尚未启动（启动需要证书），用 standalone 模式直接监听 80 端口
+    docker compose stop nginx-plan1 2>/dev/null || true
+    docker run --rm \
+        -p 80:80 \
+        -v jvs_letsencrypt:/etc/letsencrypt \
+        certbot/certbot certonly \
+        --standalone \
         --email "admin@${DOMAIN}" \
         --agree-tos \
         --no-eff-email \
