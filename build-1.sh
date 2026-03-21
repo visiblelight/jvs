@@ -82,11 +82,9 @@ docker compose build backend
 info "Starting postgres and redis..."
 docker compose up -d postgres redis
 info "Waiting for postgres to be ready..."
-docker compose run --rm backend sh -c "
-    until pg_isready -h postgres -U \$POSTGRES_USER -d \$POSTGRES_DB 2>/dev/null; do
-        echo 'waiting for postgres...'; sleep 2;
-    done
-" 2>/dev/null || sleep 10
+until docker compose exec postgres pg_isready -U "${POSTGRES_USER}" -d "${POSTGRES_DB}" 2>/dev/null; do
+    echo 'waiting for postgres...'; sleep 2;
+done
 
 # ── 7. 数据库迁移 ──────────────────────────────────────────────────────────────
 info "Running database migrations..."
