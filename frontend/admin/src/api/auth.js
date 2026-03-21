@@ -11,9 +11,7 @@ export function getMe() {
 export function uploadAvatar(file) {
   const form = new FormData()
   form.append('file', file)
-  return request.post('/admin/auth/avatar', form, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-  })
+  return request.post('/admin/auth/avatar', form)
 }
 
 export function deleteAvatar() {
