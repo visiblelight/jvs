@@ -4,6 +4,7 @@ import { resolve } from 'path'
 
 export default defineConfig({
   plugins: [vue()],
+  base: '/mobile/',
   resolve: {
     alias: {
       '@': resolve(__dirname, 'src'),
@@ -13,6 +14,7 @@ export default defineConfig({
     port: 3002,
     proxy: {
       '/api': 'http://localhost:8000',
+      '/uploads': 'http://localhost:8000',
     },
   },
 })
