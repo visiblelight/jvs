@@ -1,20 +1,15 @@
 <template>
   <div class="todo-page">
-    <TodoSidebar
-      @manage-categories="showCategoryManager = true"
-      @manage-tags="showTagManager = true"
-    />
+    <TodoSidebar />
     <TodoList @create="openCreate" />
     <TodoDetail @edit="openEdit" />
 
-    <TodoFormModal
+    <TodoFormDrawer
       v-if="showForm"
       :edit-item="editItem"
       @close="showForm = false"
       @saved="onSaved"
     />
-    <CategoryManager v-if="showCategoryManager" @close="showCategoryManager = false" />
-    <TagManager v-if="showTagManager" @close="showTagManager = false" />
   </div>
 </template>
 
@@ -24,16 +19,12 @@ import { useTodoStore } from '@/stores/todo'
 import TodoSidebar from './TodoSidebar.vue'
 import TodoList from './TodoList.vue'
 import TodoDetail from './TodoDetail.vue'
-import TodoFormModal from './TodoFormModal.vue'
-import CategoryManager from './CategoryManager.vue'
-import TagManager from './TagManager.vue'
+import TodoFormDrawer from './TodoFormDrawer.vue'
 
 const store = useTodoStore()
 
 const showForm = ref(false)
 const editItem = ref(null)
-const showCategoryManager = ref(false)
-const showTagManager = ref(false)
 
 function openCreate() {
   editItem.value = null

@@ -196,10 +196,10 @@ function formatDate(d) {
 }
 
 .logout-btn {
-  padding: 8px 16px;
+  padding: 8px 18px;
   background: none;
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-pill);
   font-family: var(--font-body);
   font-size: 13px;
   color: var(--color-text-secondary);
@@ -283,9 +283,9 @@ function formatDate(d) {
 }
 
 .form-row input {
-  padding: 9px 12px;
+  padding: 10px 14px;
   border: 1.5px solid var(--color-border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   font-family: var(--font-body);
   font-size: 13px;
   color: var(--color-text);
@@ -310,11 +310,11 @@ function formatDate(d) {
 
 .btn-primary {
   align-self: flex-start;
-  padding: 8px 20px;
+  padding: 9px 24px;
   background: var(--color-accent);
   color: white;
   border: none;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-pill);
   font-family: var(--font-body);
   font-size: 13px;
   font-weight: 500;
@@ -353,10 +353,10 @@ function formatDate(d) {
 }
 
 .btn-secondary {
-  padding: 6px 14px;
+  padding: 7px 16px;
   background: var(--color-surface);
   border: 1.5px solid var(--color-border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-pill);
   font-family: var(--font-body);
   font-size: 12px;
   font-weight: 500;

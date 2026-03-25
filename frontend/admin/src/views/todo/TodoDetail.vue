@@ -160,10 +160,10 @@ async function handleDelete() {
   display: flex;
   align-items: center;
   gap: 5px;
-  padding: 5px 10px;
+  padding: 6px 14px;
   border: 1px solid var(--color-border);
   background: none;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-pill);
   font-family: var(--font-body);
   font-size: 12px;
   cursor: pointer;
@@ -215,9 +215,9 @@ async function handleDelete() {
 }
 
 .prop-select {
-  padding: 5px 10px;
+  padding: 6px 12px;
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   background: var(--color-surface);
   color: var(--color-text);
   font-family: var(--font-body);

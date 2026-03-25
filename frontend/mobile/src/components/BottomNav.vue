@@ -23,21 +23,30 @@
 .bottom-nav {
   display: flex;
   background: var(--color-tab-bg);
-  border-top: 1px solid var(--color-tab-border);
-  padding-bottom: var(--safe-bottom);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  /* Floating Pill shape */
+  margin: 0 16px calc(16px + var(--safe-bottom));
+  border-radius: var(--radius-full);
+  box-shadow: var(--shadow-floating);
   flex-shrink: 0;
+  pointer-events: auto; /* Since wrapper is none */
+  overflow: hidden;
 }
 .nav-item {
   flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 3px;
-  padding: 10px 0 6px;
+  gap: 4px;
+  padding: 12px 0 10px;
   color: var(--color-text-tertiary);
-  transition: color var(--transition-fast);
+  transition: all var(--transition-fast);
   font-size: 11px;
   font-weight: 500;
+}
+.nav-item:active {
+  transform: scale(0.92);
 }
 .nav-item--active {
   color: var(--color-accent);

@@ -159,8 +159,8 @@ const formattedTime = computed(() =>
   text-transform: uppercase;
   color: var(--color-accent-text);
   background: var(--color-accent-subtle);
-  padding: 4px 12px;
-  border-radius: 100px;
+  padding: 5px 14px;
+  border-radius: var(--radius-pill);
   margin-bottom: 16px;
 }
 
@@ -298,12 +298,12 @@ const formattedTime = computed(() =>
   height: 44px;
   background: var(--color-accent-subtle);
   color: var(--color-accent-text);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-lg);
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  transition: background var(--transition-fast);
+  transition: all var(--transition-base);
 }
 
 .module-card:hover .module-icon-wrap {

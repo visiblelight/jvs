@@ -4,8 +4,17 @@
     <aside class="sidebar">
       <div class="sidebar-logo">
         <div class="logo-mark">
-          <svg viewBox="0 0 24 24" fill="none" width="18" height="18">
-            <path d="M3 3h8v8H3zM13 3h8v8h-8zM3 13h8v8H3zM17 13a4 4 0 100 8 4 4 0 000-8z" fill="currentColor" opacity="0.9"/>
+          <svg viewBox="0 0 32 32" width="28" height="28">
+            <defs>
+              <linearGradient id="jvs-g" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#818CF8"/>
+                <stop offset="100%" stop-color="#4F46E5"/>
+              </linearGradient>
+            </defs>
+            <rect width="32" height="32" rx="7" fill="url(#jvs-g)"/>
+            <path d="M20 7 L20 22 C20 28 10 28 10 21"
+                  fill="none" stroke="white" stroke-width="5.5"
+                  stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
         </div>
       </div>
@@ -97,29 +106,32 @@ const menuItems = [
 .admin-layout {
   min-height: 100vh;
   display: flex;
+  background: transparent;
 }
 
-/* ── Sidebar ── */
+/* ── Sidebar Island ── */
 .sidebar {
   width: var(--sidebar-width);
   background: var(--color-surface-sidebar);
-  border-right: 1px solid var(--color-border-light);
+  border: 1px solid var(--color-border);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-md);
   display: flex;
   flex-direction: column;
   align-items: center;
   flex-shrink: 0;
   position: fixed;
-  top: 0;
-  left: 0;
-  bottom: 0;
+  top: 16px;
+  left: 16px;
+  bottom: 16px;
   z-index: 20;
-  padding: 12px 0;
+  padding: 16px 0;
 }
 
 .sidebar-logo {
-  margin-bottom: 20px;
-  padding: 4px 0 12px;
-  border-bottom: 1px solid var(--color-border-light);
+  margin-bottom: 24px;
   width: 100%;
   display: flex;
   justify-content: center;
@@ -128,17 +140,18 @@ const menuItems = [
 .logo-mark {
   width: 36px;
   height: 36px;
-  background: var(--color-accent);
+  background: transparent;
   border-radius: var(--radius-md);
   display: flex;
   align-items: center;
   justify-content: center;
   color: white;
-  transition: transform var(--transition-fast);
+  transition: transform var(--transition-base);
 }
 
 .logo-mark:hover {
   transform: scale(1.05);
+  filter: brightness(1.1);
 }
 
 /* Nav */
@@ -147,20 +160,20 @@ const menuItems = [
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
+  gap: 8px;
   width: 100%;
-  padding: 0 10px;
+  padding: 0 12px;
 }
 
 .sidebar-bottom {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
+  gap: 8px;
   width: 100%;
-  padding: 0 10px;
-  padding-top: 12px;
-  border-top: 1px solid var(--color-border-light);
+  padding: 0 12px;
+  padding-top: 16px;
+  border-top: 1px solid var(--color-border);
 }
 
 .nav-item-wrap {
@@ -173,10 +186,10 @@ const menuItems = [
   align-items: center;
   justify-content: center;
   width: 100%;
-  height: 40px;
+  height: 44px;
   border-radius: var(--radius-md);
   color: var(--color-text-sidebar);
-  transition: all var(--transition-fast);
+  transition: all var(--transition-base);
   position: relative;
 }
 
@@ -190,49 +203,44 @@ const menuItems = [
 .nav-item:hover {
   color: var(--color-text-sidebar-active);
   background: var(--color-surface-hover);
+  transform: scale(0.96);
 }
 
 .nav-item--active {
   color: var(--color-accent-text);
   background: var(--color-accent-subtle);
+  transform: scale(1);
 }
 
-.nav-item--active::before {
-  content: '';
-  position: absolute;
-  left: -10px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 3px;
-  height: 20px;
-  background: var(--color-accent);
-  border-radius: 0 2px 2px 0;
+.nav-item--active:hover {
+  transform: scale(0.96);
 }
 
 .nav-icon {
-  width: 18px;
-  height: 18px;
+  width: 20px;
+  height: 20px;
   flex-shrink: 0;
 }
 
 /* Tooltip */
 .nav-tooltip {
   position: absolute;
-  left: calc(100% + 10px);
+  left: calc(100% + 14px);
   top: 50%;
-  transform: translateY(-50%) translateX(-4px);
+  transform: translateY(-50%) translateX(-4px) scale(0.95);
   background: var(--color-text);
   color: var(--color-text-inverse);
   font-family: var(--font-body);
-  font-size: 12px;
-  font-weight: 500;
+  font-size: 13px;
+  font-weight: 600;
   white-space: nowrap;
-  padding: 5px 10px;
+  padding: 6px 12px;
   border-radius: var(--radius-sm);
   opacity: 0;
   pointer-events: none;
-  transition: opacity var(--transition-fast), transform var(--transition-fast);
+  transition: all var(--transition-fast);
   z-index: 100;
+  box-shadow: var(--shadow-sm);
 }
 
 .nav-tooltip::before {
@@ -247,7 +255,7 @@ const menuItems = [
 
 .nav-item-wrap:hover .nav-tooltip {
   opacity: 1;
-  transform: translateY(-50%) translateX(0);
+  transform: translateY(-50%) translateX(0) scale(1);
 }
 
 /* Avatar link */
@@ -256,41 +264,53 @@ const menuItems = [
   padding: 4px;
 }
 
-.nav-avatar-link.nav-item--active {
-  background: var(--color-accent-subtle);
+.nav-avatar-link:hover {
+  transform: scale(1.05);
 }
 
-.nav-avatar-link.nav-item--active::before {
-  display: none;
+.nav-avatar-link.nav-item--active {
+  background: var(--color-accent-subtle);
 }
 
 /* ── Main Area ── */
 .main-area {
   flex: 1;
-  margin-left: var(--sidebar-width);
+  /* Accommodate the left floating sidebar (68px width + 16px left + 16px space) */
+  margin-left: calc(var(--sidebar-width) + 32px);
+  margin-top: 16px;
+  margin-right: 16px;
+  margin-bottom: 16px;
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
+  min-height: calc(100vh - 32px);
+  background: var(--color-surface);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
 }
 
 .content {
   flex: 1;
-  background: var(--color-bg);
+  background: transparent;
+  position: relative;
 }
 
 /* ── Page transitions ── */
 .page-enter-active,
 .page-leave-active {
-  transition: opacity 0.18s ease, transform 0.18s ease;
+  transition: opacity 0.25s cubic-bezier(0.4, 0, 0.2, 1), transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .page-enter-from {
   opacity: 0;
-  transform: translateY(6px);
+  transform: translateY(8px) scale(0.99);
 }
 
 .page-leave-to {
   opacity: 0;
-  transform: translateY(-6px);
+  transform: translateY(-8px) scale(0.99);
 }
 </style>

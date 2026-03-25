@@ -121,10 +121,10 @@ async function handleDelete() {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 12px;
+  padding: 6px 16px;
   border: 1px solid var(--color-border);
   background: var(--color-surface);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-pill);
   font-family: var(--font-body);
   font-size: 12px;
   color: var(--color-text-secondary);

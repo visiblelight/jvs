@@ -82,8 +82,8 @@ async function handleDelete(id) {
 .overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.45);
-  backdrop-filter: blur(4px);
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(8px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -96,7 +96,7 @@ async function handleDelete(id) {
 .modal {
   background: var(--color-surface);
   border: 1px solid var(--color-border-light);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-xl);
   width: 480px;
   max-height: 70vh;
   overflow-y: auto;
@@ -153,9 +153,9 @@ async function handleDelete(id) {
 
 .add-row input {
   flex: 1;
-  padding: 8px 12px;
+  padding: 9px 14px;
   border: 1.5px solid var(--color-border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   font-family: var(--font-body);
   font-size: 13px;
   color: var(--color-text);
@@ -168,11 +168,11 @@ async function handleDelete(id) {
 }
 
 .btn-primary-sm {
-  padding: 8px 16px;
+  padding: 9px 18px;
   background: var(--color-accent);
   color: white;
   border: none;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-pill);
   font-family: var(--font-body);
   font-size: 13px;
   font-weight: 500;

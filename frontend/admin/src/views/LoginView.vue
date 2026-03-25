@@ -15,8 +15,10 @@
       <div class="brand-col">
         <div class="brand-lockup">
           <div class="brand-icon">
-            <svg viewBox="0 0 24 24" fill="none" width="28" height="28">
-              <path d="M3 3h8v8H3zM13 3h8v8h-8zM3 13h8v8H3zM17 13a4 4 0 100 8 4 4 0 000-8z" fill="currentColor"/>
+            <svg viewBox="0 0 32 32" width="28" height="28">
+              <path d="M20 7 L20 22 C20 28 10 28 10 21"
+                    fill="none" stroke="currentColor" stroke-width="5.5"
+                    stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
           </div>
           <h1 class="brand-name">JVS</h1>
@@ -142,7 +144,7 @@ async function handleLogin() {
 .mesh-orb--1 {
   width: 500px;
   height: 500px;
-  background: radial-gradient(circle, var(--color-accent) 0%, transparent 70%);
+  background: radial-gradient(circle, #57C74A 0%, transparent 70%);
   top: -150px;
   left: -100px;
   animation: drift1 14s ease-in-out infinite alternate;
@@ -151,7 +153,7 @@ async function handleLogin() {
 .mesh-orb--2 {
   width: 400px;
   height: 400px;
-  background: radial-gradient(circle, #a855f7 0%, transparent 70%);
+  background: radial-gradient(circle, #2AAF25 0%, transparent 70%);
   bottom: -100px;
   right: -80px;
   animation: drift2 18s ease-in-out infinite alternate;
@@ -160,7 +162,7 @@ async function handleLogin() {
 .mesh-orb--3 {
   width: 300px;
   height: 300px;
-  background: radial-gradient(circle, #06b6d4 0%, transparent 70%);
+  background: radial-gradient(circle, #09ADC3 0%, transparent 70%);
   top: 50%;
   left: 40%;
   animation: drift3 10s ease-in-out infinite alternate;
@@ -356,7 +358,7 @@ async function handleLogin() {
   border: none;
   border-bottom: 1.5px solid var(--color-border);
   background: none;
-  padding: 8px 0;
+  padding: 10px 0;
   font-family: var(--font-body);
   font-size: 15px;
   color: var(--color-text);
@@ -399,7 +401,7 @@ async function handleLogin() {
   background: var(--color-accent);
   color: white;
   border: none;
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-pill);
   font-family: var(--font-heading);
   font-size: 15px;
   font-weight: 700;

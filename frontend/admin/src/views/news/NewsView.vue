@@ -3,7 +3,7 @@
     <NewsList @create="openCreate" @edit="openEdit" />
     <NewsDetail @edit="openEdit" />
 
-    <NewsFormModal
+    <NewsFormDrawer
       v-if="showForm"
       :edit-article="editArticle"
       @close="showForm = false"
@@ -19,7 +19,7 @@ import { ref, onMounted, provide } from 'vue'
 import { useNewsStore } from '@/stores/news'
 import NewsList from './NewsList.vue'
 import NewsDetail from './NewsDetail.vue'
-import NewsFormModal from './NewsFormModal.vue'
+import NewsFormDrawer from './NewsFormDrawer.vue'
 import NewsCategoryManager from './NewsCategoryManager.vue'
 import NewsSourceManager from './NewsSourceManager.vue'
 

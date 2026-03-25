@@ -128,11 +128,11 @@ async function toggleStatus(item) {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 7px 14px;
+  padding: 7px 18px;
   background: var(--color-accent);
   color: white;
   border: none;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-pill);
   font-family: var(--font-body);
   font-size: 13px;
   font-weight: 500;

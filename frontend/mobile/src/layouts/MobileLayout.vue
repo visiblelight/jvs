@@ -1,6 +1,6 @@
 <template>
   <div class="mobile-layout">
-    <div class="page-area">
+    <div class="page-area" :class="{ 'has-tab-bar': showTabBar }">
       <router-view v-slot="{ Component, route }">
         <transition :name="transitionName" mode="out-in">
           <component :is="Component" :key="route.path" />
@@ -8,7 +8,9 @@
       </router-view>
     </div>
     <transition name="fade">
-      <BottomNav v-if="showTabBar" />
+      <div class="tab-bar-wrapper" v-if="showTabBar">
+        <BottomNav />
+      </div>
     </transition>
   </div>
 </template>
@@ -29,10 +31,24 @@ const transitionName = computed(() => route.meta.tabBar ? 'fade' : 'slide-left')
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  position: relative;
 }
 .page-area {
   flex: 1;
-  overflow: hidden;
+  overflow: auto;
   position: relative;
+  height: 100%;
+}
+.page-area.has-tab-bar {
+  /* Leave space for the floating tab bar */
+  padding-bottom: var(--tab-bar-height);
+}
+.tab-bar-wrapper {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  pointer-events: none; /* Let clicks pass through empty spaces */
 }
 </style>

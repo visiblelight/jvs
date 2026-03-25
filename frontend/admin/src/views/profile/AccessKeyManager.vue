@@ -227,11 +227,11 @@ async function saveScopes() {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 7px 14px;
+  padding: 7px 18px;
   background: var(--color-accent);
   color: white;
   border: none;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-pill);
   font-family: var(--font-body);
   font-size: 13px;
   font-weight: 500;
@@ -406,8 +406,8 @@ async function saveScopes() {
 .overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.45);
-  backdrop-filter: blur(4px);
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(8px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -420,7 +420,7 @@ async function saveScopes() {
 .modal {
   background: var(--color-surface);
   border: 1px solid var(--color-border-light);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-xl);
   width: 480px;
   max-height: 70vh;
   overflow-y: auto;
@@ -492,9 +492,9 @@ async function saveScopes() {
 .form-row input[type="text"],
 .form-row input:not([type]) {
   width: 100%;
-  padding: 9px 12px;
+  padding: 10px 14px;
   border: 1.5px solid var(--color-border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   font-family: var(--font-body);
   font-size: 13px;
   color: var(--color-text);
@@ -528,10 +528,10 @@ async function saveScopes() {
 }
 
 .btn-cancel {
-  padding: 8px 18px;
+  padding: 9px 22px;
   border: 1px solid var(--color-border);
   background: var(--color-surface);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-pill);
   font-family: var(--font-body);
   font-size: 13px;
   color: var(--color-text-secondary);
@@ -542,11 +542,11 @@ async function saveScopes() {
 .btn-cancel:hover { background: var(--color-surface-hover); }
 
 .btn-primary {
-  padding: 8px 20px;
+  padding: 9px 24px;
   background: var(--color-accent);
   color: white;
   border: none;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-pill);
   font-family: var(--font-body);
   font-size: 13px;
   font-weight: 500;
@@ -582,11 +582,11 @@ async function saveScopes() {
 }
 
 .btn-copy {
-  padding: 6px 14px;
+  padding: 7px 16px;
   background: var(--color-accent);
   color: white;
   border: none;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-pill);
   font-family: var(--font-body);
   font-size: 12px;
   font-weight: 500;

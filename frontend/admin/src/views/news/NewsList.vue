@@ -165,11 +165,11 @@ function formatDate(d) {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 7px 14px;
+  padding: 7px 18px;
   background: var(--color-accent);
   color: white;
   border: none;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-pill);
   font-family: var(--font-body);
   font-size: 13px;
   font-weight: 500;
@@ -193,9 +193,9 @@ function formatDate(d) {
 
 .search-input {
   flex: 1;
-  padding: 7px 12px;
+  padding: 8px 14px;
   border: 1.5px solid var(--color-border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   font-family: var(--font-body);
   font-size: 13px;
   color: var(--color-text);
@@ -208,9 +208,9 @@ function formatDate(d) {
 }
 
 .filter-select {
-  padding: 7px 10px;
+  padding: 8px 12px;
   border: 1.5px solid var(--color-border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   font-family: var(--font-body);
   font-size: 12px;
   color: var(--color-text-secondary);
