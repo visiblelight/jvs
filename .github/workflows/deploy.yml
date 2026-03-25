@@ -1,0 +1,35 @@
+name: Deploy to VPS (Plan 1)
+
+on:
+  push:
+    branches:
+      - main  # 当提交推送到 main 分支时自动触发
+
+jobs:
+  deploy:
+    name: Build & Deploy
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 🚀 执行远程部署脚本
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USERNAME }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          # 可选：如果 SSH 不是默认 22 端口，取消下方注释并修改
+          # port: ${{ secrets.VPS_PORT }}
+          script: |
+            echo "1. 正在进入部署目录..."
+            cd ${{ secrets.VPS_PROJECT_DIR }}
+            
+            echo "2. 正在拉取远端最新代码..."
+            git reset --hard HEAD
+            git pull origin main
+            
+            echo "3. 开始运行一键构建重构..."
+            # 给定执行权限确保无阻
+            chmod +x build-1.sh
+            ./build-1.sh
+            
+            echo "✅ 部署已成功执行完毕！"
