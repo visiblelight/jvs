@@ -88,6 +88,8 @@ class TodoItemOut(BaseModel):
     category_id: Optional[int]
     due_date: Optional[datetime]
     completed_at: Optional[datetime]
+    is_deleted: bool
+    deleted_at: Optional[datetime]
     created_at: datetime
     updated_at: datetime
     tags: list[TagOut] = []

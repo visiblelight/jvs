@@ -14,6 +14,7 @@ export const useTodoStore = defineStore('todo', () => {
     tag_id: null,
     priority: null,
     importance: null,
+    is_deleted: false,
     page: 1,
     page_size: 50,
   })
@@ -54,7 +55,7 @@ export const useTodoStore = defineStore('todo', () => {
   }
 
   function resetFilters() {
-    filters.value = { status: null, category_id: null, tag_id: null, priority: null, importance: null, page: 1, page_size: 50 }
+    filters.value = { status: null, category_id: null, tag_id: null, priority: null, importance: null, is_deleted: false, page: 1, page_size: 50 }
     fetchItems()
   }
 

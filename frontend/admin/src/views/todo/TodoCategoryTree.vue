@@ -2,7 +2,10 @@
   <div class="todo-category-tree">
     <template v-for="cat in categories" :key="cat.id">
       <div class="tree-item-group">
+        
+        <!-- Normal Mode -->
         <button
+          v-if="editCatId !== cat.id"
           class="tree-item active-scale"
           :class="{ active: selectedId === cat.id }"
           :style="{ paddingLeft: (12 + level * 16) + 'px' }"
@@ -10,11 +13,26 @@
         >
           <span class="item-name">{{ cat.name }}</span>
           <span class="tree-actions">
+            <span class="action-icon edit" @click.stop="enterEdit(cat)" title="重命名分类">✎</span>
             <span class="action-icon" @click.stop="$emit('add', cat.id)" title="添加子分类">+</span>
             <span class="action-icon del" @click.stop="$emit('delete', cat)" title="删除分类">×</span>
           </span>
         </button>
+
+        <!-- Edit Mode -->
+        <div v-else class="inline-add" :style="{ paddingLeft: (12 + level * 16) + 'px', marginBottom: '4px' }">
+          <input 
+            v-model="editCatName" 
+            placeholder="输入新名称回车..." 
+            @keyup.enter="submitEdit(cat)" 
+            @keyup.esc="cancelEdit" 
+            class="inline-input" 
+            autofocus 
+          />
+          <button class="inline-cancel" @click="cancelEdit" title="取消">×</button>
+        </div>
         
+        <!-- Parent Adding a Child -->
         <div v-if="addParentId === cat.id" class="inline-add" :style="{ paddingLeft: (28 + level * 16) + 'px' }">
           <input 
             v-model="localNewName" 
@@ -38,6 +56,7 @@
           @add="$emit('add', $event)"
           @delete="$emit('delete', $event)"
           @submit-add="$emit('submit-add', $event)"
+          @submit-edit="$emit('submit-edit', $event)"
           @cancel-add="$emit('cancel-add')"
         />
       </div>
@@ -55,9 +74,11 @@ const props = defineProps({
   addParentId: { type: [Number, String, Boolean], default: false }
 })
 
-const emit = defineEmits(['select', 'add', 'delete', 'submit-add', 'cancel-add'])
+const emit = defineEmits(['select', 'add', 'delete', 'submit-add', 'submit-edit', 'cancel-add'])
 
 const localNewName = ref('')
+const editCatId = ref(null)
+const editCatName = ref('')
 
 // Clear local input when adding stops
 watch(() => props.addParentId, (val) => {
@@ -72,6 +93,23 @@ function handleEnter(parentId) {
     emit('submit-add', { parentId, name: txt })
     localNewName.value = ''
   }
+}
+
+function enterEdit(cat) {
+  editCatId.value = cat.id
+  editCatName.value = cat.name
+}
+
+function submitEdit(cat) {
+  const txt = editCatName.value.trim()
+  if (txt && txt !== cat.name) {
+    emit('submit-edit', { id: cat.id, name: txt })
+  }
+  editCatId.value = null
+}
+
+function cancelEdit() {
+  editCatId.value = null
 }
 </script>
 
@@ -122,8 +160,7 @@ function handleEnter(parentId) {
 }
 .action-icon {
   color: var(--color-text-tertiary);
-  font-size: 16px;
-  line-height: 1;
+  font-size: 14px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -138,6 +175,10 @@ function handleEnter(parentId) {
 .action-icon.del:hover {
   color: var(--color-danger);
   background: var(--color-danger-subtle, rgba(239, 68, 68, 0.15));
+}
+.action-icon.edit:hover {
+  color: var(--color-accent);
+  background: var(--color-accent-subtle);
 }
 
 .tree-item:hover {

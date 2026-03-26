@@ -86,18 +86,29 @@ def delete_tag(db: Session, tag: TodoTag) -> None:
 
 # ── 事项 ──
 
+from sqlalchemy import or_
+
 def get_items(
     db: Session,
     user_id: int,
+    search: Optional[str] = None,
     status: Optional[str] = None,
     category_id: Optional[int] = None,
     tag_id: Optional[int] = None,
     priority: Optional[int] = None,
     importance: Optional[int] = None,
+    is_deleted: bool = False,
     page: int = 1,
     page_size: int = 50,
 ) -> tuple[list[TodoItem], int]:
-    query = db.query(TodoItem).filter(TodoItem.user_id == user_id)
+    query = db.query(TodoItem).filter(TodoItem.user_id == user_id, TodoItem.is_deleted == is_deleted)
+
+    if search:
+        search_pattern = f"%{search}%"
+        query = query.filter(or_(
+            TodoItem.title.ilike(search_pattern),
+            TodoItem.description.ilike(search_pattern)
+        ))
 
     if status:
         query = query.filter(TodoItem.status == status)
@@ -149,5 +160,17 @@ def update_item(db: Session, item: TodoItem, tag_ids: Optional[list[int]], user_
 
 
 def delete_item(db: Session, item: TodoItem) -> None:
+    item.is_deleted = True
+    item.deleted_at = datetime.now(timezone.utc)
+    db.commit()
+
+
+def restore_item(db: Session, item: TodoItem) -> None:
+    item.is_deleted = False
+    item.deleted_at = None
+    db.commit()
+
+
+def hard_delete_item(db: Session, item: TodoItem) -> None:
     db.delete(item)
     db.commit()

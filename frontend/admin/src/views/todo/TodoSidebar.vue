@@ -1,5 +1,14 @@
 <template>
   <div class="todo-sidebar">
+    <!-- Search Trigger -->
+    <div class="sidebar-header">
+      <button class="search-trigger active-scale" @click="$emit('open-search')" title="全局搜索 (Cmd+K / Ctrl+K)">
+        <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+        <span class="search-text">搜索...</span>
+        <span class="search-hotkey">⌘K</span>
+      </button>
+    </div>
+
     <!-- Status -->
     <div class="section">
       <div class="section-head">
@@ -59,6 +68,7 @@
           @add="id => toggleAddCat(id)"
           @delete="cat => confirmDeleteCategory(cat)"
           @submit-add="payload => handleAddCat(payload.parentId, payload.name)"
+          @submit-edit="payload => handleSubmitEditCat(payload)"
           @cancel-add="showAddCat = false"
         />
       </div>
@@ -83,8 +93,14 @@
 
         <div v-if="showAddTag" class="inline-add" style="padding-left:12px; margin-bottom:8px">
           <input 
+            type="color" 
+            v-model="newTagColor" 
+            class="tag-color-picker" 
+            title="选择标签颜色"
+          />
+          <input 
             v-model="newTagName" 
-            placeholder="新标签回车..." 
+            placeholder="新标签回车 (ESC取消)" 
             @keyup.enter="handleAddTag" 
             @keyup.esc="showAddTag = false" 
             class="inline-input" 
@@ -93,18 +109,54 @@
           <button class="inline-cancel" @click="showAddTag = false" title="取消">×</button>
         </div>
 
+        <template v-for="tag in store.tags" :key="tag.id">
+          <!-- Normal mode -->
+          <button
+            v-if="editTagId !== tag.id"
+            class="tree-item active-scale tag-item"
+            :class="{ active: store.filters.tag_id === tag.id }"
+            @click="store.setFilter('tag_id', store.filters.tag_id === tag.id ? null : tag.id)"
+            style="padding-left: 12px; padding-right: 12px;"
+          >
+            <span class="chip-dot" :style="{ background: tag.color }"></span>
+            <span class="item-name">{{ tag.name }}</span>
+            <span class="tree-actions">
+              <span class="action-icon edit" @click.stop="enterEditTag(tag)">✎</span>
+              <span class="action-icon del" @click.stop="confirmDeleteTag(tag)">×</span>
+            </span>
+          </button>
+
+          <!-- Edit mode -->
+          <div v-else class="inline-add" style="padding-left:12px; margin-bottom:8px">
+            <input type="color" v-model="editTagColor" class="tag-color-picker" title="修改标签颜色" />
+            <input 
+              v-model="editTagName" 
+              placeholder="修改标签名..." 
+              @keyup.enter="submitEditTag(tag)" 
+              @keyup.esc="editTagId = null" 
+              class="inline-input" 
+              autofocus 
+            />
+            <button class="inline-cancel" @click="editTagId = null" title="取消">×</button>
+          </div>
+        </template>
+      </div>
+    </div>
+
+    <!-- System -->
+    <div class="section">
+      <div class="section-head">
+        <h3 class="section-label">系统</h3>
+      </div>
+      <div class="tree-list">
         <button
-          v-for="tag in store.tags"
-          :key="tag.id"
-          class="tree-item active-scale tag-item"
-          :class="{ active: store.filters.tag_id === tag.id }"
-          @click="store.setFilter('tag_id', store.filters.tag_id === tag.id ? null : tag.id)"
-          style="padding-left: 12px; padding-right: 12px;"
+          class="tree-item active-scale"
+          @click="$emit('open-trash')"
+          style="padding-left: 12px; margin-bottom: 4px;"
         >
-          <span class="chip-dot" :style="{ background: tag.color }"></span>
-          <span class="item-name">{{ tag.name }}</span>
-          <span class="tree-actions">
-            <span class="action-icon del" @click.stop="confirmDeleteTag(tag)">×</span>
+          <span class="item-name" style="color: var(--color-danger); display: flex; align-items: center; gap: 8px;">
+            <svg viewBox="0 0 16 16" fill="currentColor" width="14" height="14"><path d="M6.5 1.75a.25.25 0 01.25-.25h2.5a.25.25 0 01.25.25V3h-3V1.75zm4.5 0V3h2.25a.75.75 0 010 1.5H2.75a.75.75 0 010-1.5H5V1.75C5 .784 5.784 0 6.75 0h2.5C10.216 0 11 .784 11 1.75zM4.496 6.675a.75.75 0 10-1.492.15l.66 6.6A1.75 1.75 0 005.405 15h5.19a1.75 1.75 0 001.741-1.575l.66-6.6a.75.75 0 00-1.492-.15l-.66 6.6a.25.25 0 01-.249.225h-5.19a.25.25 0 01-.249-.225l-.66-6.6z"/></svg>
+            垃圾桶
           </span>
         </button>
       </div>
@@ -131,7 +183,7 @@
 <script setup>
 import { ref } from 'vue'
 import { useTodoStore } from '@/stores/todo'
-import { createCategory, deleteCategory, createTag, deleteTag } from '@/api/todo'
+import { createCategory, deleteCategory, updateCategory, createTag, deleteTag, updateTag } from '@/api/todo'
 import TodoCategoryTree from './TodoCategoryTree.vue'
 
 const store = useTodoStore()
@@ -194,6 +246,11 @@ async function handleAddCat(parentId, newName) {
   await store.fetchCategories()
 }
 
+async function handleSubmitEditCat(payload) {
+  await updateCategory(payload.id, { name: payload.name })
+  await store.fetchCategories()
+}
+
 function confirmDeleteCategory(cat) {
   customConfirm(`确认删除分类「${cat.name}」吗？关联事项不会被删除，但将失去该分类标签。`, async () => {
     await deleteCategory(cat.id)
@@ -205,15 +262,36 @@ function confirmDeleteCategory(cat) {
 // --- Tag Inline Management ---
 const showAddTag = ref(false)
 const newTagName = ref('')
+const newTagColor = ref('#6366F1')
+
+const editTagId = ref(null)
+const editTagName = ref('')
+const editTagColor = ref('#6366F1')
 
 async function handleAddTag() {
   const name = newTagName.value.trim()
   if (!name) return
-  const color = '#' + Math.floor(Math.random()*16777215).toString(16).padStart(6, '0')
+  const color = newTagColor.value
   await createTag({ name, color })
   newTagName.value = ''
   showAddTag.value = false
   await store.fetchTags()
+}
+
+function enterEditTag(tag) {
+  editTagId.value = tag.id
+  editTagName.value = tag.name
+  editTagColor.value = tag.color
+}
+
+async function submitEditTag(tag) {
+  const name = editTagName.value.trim()
+  if (name && (name !== tag.name || editTagColor.value !== tag.color)) {
+    await updateTag(tag.id, { name, color: editTagColor.value })
+    await store.fetchTags()
+    store.fetchItems()
+  }
+  editTagId.value = null
 }
 
 function confirmDeleteTag(tag) {
@@ -223,6 +301,7 @@ function confirmDeleteTag(tag) {
     store.fetchItems()
   })
 }
+
 </script>
 
 <style scoped>
@@ -233,6 +312,53 @@ function confirmDeleteTag(tag) {
   overflow-y: auto;
   padding: 0;
   flex-shrink: 0;
+}
+
+.sidebar-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--color-border-light);
+}
+
+.search-trigger {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--color-bg-base);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  color: var(--color-text-secondary);
+  transition: all var(--transition-fast);
+}
+
+.search-trigger:hover {
+  background: var(--color-surface-hover);
+  border-color: var(--color-accent-subtle);
+  color: var(--color-text);
+}
+
+.search-icon {
+  width: 16px;
+  height: 16px;
+}
+
+.search-text {
+  flex: 1;
+  text-align: left;
+  font-size: 13px;
+  font-family: var(--font-body);
+}
+
+.search-hotkey {
+  font-size: 11px;
+  font-family: var(--font-mono, monospace);
+  padding: 2px 6px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  color: var(--color-text-tertiary);
 }
 
 .section {
@@ -412,6 +538,24 @@ function confirmDeleteTag(tag) {
   font-size: 12px;
   outline: none;
   box-shadow: 0 0 0 3px var(--color-accent-subtle);
+}
+
+.tag-color-picker {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  background: transparent;
+  flex-shrink: 0;
+}
+.tag-color-picker::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+.tag-color-picker::-webkit-color-swatch {
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
 }
 
 .inline-cancel {

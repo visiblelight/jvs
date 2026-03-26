@@ -127,11 +127,13 @@ def delete_tag(
 
 @router.get("/items", response_model=TodoItemListOut)
 def list_items(
+    search: Optional[str] = Query(None, alias="q"),
     status_filter: Optional[str] = Query(None, alias="status"),
     category_id: Optional[int] = None,
     tag_id: Optional[int] = None,
     priority: Optional[int] = None,
     importance: Optional[int] = None,
+    is_deleted: bool = Query(False, alias="is_deleted"),
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=100),
     db: Session = Depends(get_db),
@@ -139,8 +141,8 @@ def list_items(
 ):
     items, total = todo_svc.get_items(
         db, current_user.id,
-        status=status_filter, category_id=category_id, tag_id=tag_id,
-        priority=priority, importance=importance,
+        search=search, status=status_filter, category_id=category_id, tag_id=tag_id,
+        priority=priority, importance=importance, is_deleted=is_deleted,
         page=page, page_size=page_size,
     )
     return TodoItemListOut(items=items, total=total)
@@ -192,6 +194,31 @@ def delete_item(
     if not item:
         raise HTTPException(status_code=404, detail="事项不存在")
     todo_svc.delete_item(db, item)
+
+
+@router.post("/items/{item_id}/restore", response_model=TodoItemOut)
+def restore_item(
+    item_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    item = db.query(TodoItem).filter(TodoItem.id == item_id, TodoItem.user_id == current_user.id).first()
+    if not item:
+        raise HTTPException(status_code=404, detail="事项不存在")
+    todo_svc.restore_item(db, item)
+    return item
+
+
+@router.delete("/items/{item_id}/hard", status_code=status.HTTP_204_NO_CONTENT)
+def hard_delete_item(
+    item_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    item = db.query(TodoItem).filter(TodoItem.id == item_id, TodoItem.user_id == current_user.id).first()
+    if not item:
+        raise HTTPException(status_code=404, detail="事项不存在")
+    todo_svc.hard_delete_item(db, item)
 
 
 @router.patch("/items/{item_id}/status", response_model=TodoItemOut)

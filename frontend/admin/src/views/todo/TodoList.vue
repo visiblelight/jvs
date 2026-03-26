@@ -22,12 +22,13 @@
         :class="{ 'item-row--active': store.currentItem?.id === item.id }"
         @click="store.selectItem(item.id)"
       >
-        <button class="check-btn" @click.stop="toggleStatus(item)">
+        <button class="check-btn" @click.stop="toggleStatus(item)" :disabled="store.filters.is_deleted">
           <span
             class="check-circle"
             :class="{
               'check-circle--done': item.status === 'completed',
               'check-circle--paused': item.status === 'paused',
+              'check-circle--disabled': store.filters.is_deleted
             }"
           >
             <svg v-if="item.status === 'completed'" viewBox="0 0 12 12" fill="none" width="10" height="10"><path d="M2.5 6l2.5 2.5 4.5-4.5" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -38,8 +39,8 @@
             {{ item.title }}
           </div>
           <div class="item-badges">
-            <span class="badge badge--priority" :class="'priority-' + item.priority">P{{ item.priority }}</span>
-            <span class="badge badge--importance">I{{ item.importance }}</span>
+            <span class="badge badge--priority" :class="'priority-' + item.priority">{{ getPriorityLabel(item.priority) }}</span>
+            <span class="badge badge--importance">{{ getImportanceLabel(item.importance) }}</span>
             <span v-if="item.due_date" class="badge badge--due" :class="{ overdue: isOverdue(item) }">{{ formatDate(item.due_date) }}</span>
             <span
               v-for="tag in item.tags"
@@ -61,6 +62,11 @@ import { updateItemStatus } from '@/api/todo'
 defineEmits(['create'])
 
 const store = useTodoStore()
+
+const priorities = ['极低', '低', '中等', '高', '极高']
+const importances = ['不重要', '一般', '偏重要', '非常重要', '极其重要']
+const getPriorityLabel = (n) => priorities[n - 1] || '无'
+const getImportanceLabel = (n) => importances[n - 1] || '无'
 
 function formatDate(d) {
   if (!d) return ''

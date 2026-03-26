@@ -25,12 +25,12 @@
             <div class="segmented-control">
               <button 
                 type="button" 
-                v-for="n in 5" :key="'p'+n"
+                v-for="(label, idx) in priorities" :key="'p'+idx"
                 class="segment-btn active-scale" 
-                :class="{ active: form.priority === n }"
-                @click="form.priority = n"
+                :class="{ active: form.priority === idx + 1 }"
+                @click="form.priority = idx + 1"
               >
-                P{{ n }}
+                {{ label }}
               </button>
             </div>
           </div>
@@ -40,12 +40,12 @@
             <div class="segmented-control">
               <button 
                 type="button" 
-                v-for="n in 5" :key="'i'+n"
+                v-for="(label, idx) in importances" :key="'i'+idx"
                 class="segment-btn active-scale" 
-                :class="{ active: form.importance === n }"
-                @click="form.importance = n"
+                :class="{ active: form.importance === idx + 1 }"
+                @click="form.importance = idx + 1"
               >
-                lv.{{ n }}
+                {{ label }}
               </button>
             </div>
           </div>
@@ -114,6 +114,9 @@ const props = defineProps({
 const emit = defineEmits(['close', 'saved'])
 const store = useTodoStore()
 const isEdit = computed(() => !!props.editItem)
+
+const priorities = ['极低', '低', '中等', '高', '极高']
+const importances = ['不重要', '一般', '偏重要', '非常重要', '极其重要']
 
 function formatLocalDatetime(d) {
   if (!d) return ''

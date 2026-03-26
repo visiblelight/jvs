@@ -57,6 +57,8 @@ class TodoItem(Base):
     category_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("todo_categories.id", ondelete="SET NULL"), nullable=True)
     due_date: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    is_deleted: Mapped[bool] = mapped_column(Boolean, default=False)
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime, default=lambda: datetime.now(timezone.utc)
     )
