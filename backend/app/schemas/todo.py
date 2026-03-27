@@ -60,6 +60,7 @@ class TodoItemCreate(BaseModel):
     importance: int = Field(default=3, ge=1, le=5)
     category_id: Optional[int] = None
     due_date: Optional[datetime] = None
+    scheduled_at: Optional[datetime] = None
     tag_ids: list[int] = []
 
 
@@ -71,6 +72,7 @@ class TodoItemUpdate(BaseModel):
     status: Optional[str] = None
     category_id: Optional[int] = None
     due_date: Optional[datetime] = None
+    scheduled_at: Optional[datetime] = None
     tag_ids: Optional[list[int]] = None
 
 
@@ -87,6 +89,7 @@ class TodoItemOut(BaseModel):
     status: str
     category_id: Optional[int]
     due_date: Optional[datetime]
+    scheduled_at: Optional[datetime]
     completed_at: Optional[datetime]
     is_deleted: bool
     deleted_at: Optional[datetime]

@@ -66,6 +66,15 @@
             </div>
           </div>
 
+          <div class="field-row">
+            <div class="field-section">
+              <label>🕐 执行时间</label>
+              <input v-model="form.scheduled_at" type="datetime-local" class="minimal-select" />
+              <span class="field-hint">事项将在此时间点执行</span>
+            </div>
+            <div class="field-section"></div>
+          </div>
+
           <div class="field-section">
             <label>应用标签</label>
             <div class="tag-picker">
@@ -132,6 +141,7 @@ const form = reactive({
   importance: props.editItem?.importance || 3,
   category_id: props.editItem?.category_id || null,
   due_date: formatLocalDatetime(props.editItem?.due_date) || '',
+  scheduled_at: formatLocalDatetime(props.editItem?.scheduled_at) || '',
   tag_ids: props.editItem?.tags?.map((t) => t.id) || [],
   status: props.editItem?.status || 'pending',
 })
@@ -156,6 +166,7 @@ async function handleSubmit() {
     importance: form.importance,
     category_id: form.category_id || null,
     due_date: form.due_date ? new Date(form.due_date).toISOString() : null,
+    scheduled_at: form.scheduled_at ? new Date(form.scheduled_at).toISOString() : null,
     tag_ids: form.tag_ids,
   }
   if (isEdit.value) {
@@ -352,5 +363,11 @@ async function handleSubmit() {
 }
 .btn-primary:hover {
   background: var(--color-accent-hover);
+}
+
+.field-hint {
+  font-size: 11px;
+  color: var(--color-text-tertiary);
+  margin-top: 2px;
 }
 </style>

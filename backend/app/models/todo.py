@@ -56,6 +56,7 @@ class TodoItem(Base):
     status: Mapped[str] = mapped_column(String(20), default="pending")
     category_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("todo_categories.id", ondelete="SET NULL"), nullable=True)
     due_date: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    scheduled_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     is_deleted: Mapped[bool] = mapped_column(Boolean, default=False)
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)

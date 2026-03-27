@@ -86,7 +86,7 @@ def delete_tag(db: Session, tag: TodoTag) -> None:
 
 # ── 事项 ──
 
-from sqlalchemy import or_
+from sqlalchemy import and_, or_
 
 def get_items(
     db: Session,
@@ -174,3 +174,24 @@ def restore_item(db: Session, item: TodoItem) -> None:
 def hard_delete_item(db: Session, item: TodoItem) -> None:
     db.delete(item)
     db.commit()
+
+
+def get_calendar_items(
+    db: Session,
+    user_id: int,
+    start: datetime,
+    end: datetime,
+) -> list[TodoItem]:
+    return (
+        db.query(TodoItem)
+        .filter(
+            TodoItem.user_id == user_id,
+            TodoItem.is_deleted == False,
+            or_(
+                and_(TodoItem.due_date != None, TodoItem.due_date >= start, TodoItem.due_date < end),
+                and_(TodoItem.scheduled_at != None, TodoItem.scheduled_at >= start, TodoItem.scheduled_at < end),
+            ),
+        )
+        .order_by(TodoItem.scheduled_at, TodoItem.due_date)
+        .all()
+    )

@@ -8,6 +8,8 @@ export const useTodoStore = defineStore('todo', () => {
   const items = ref([])
   const total = ref(0)
   const currentItem = ref(null)
+  const calendarItems = ref([])
+  const calendarRange = ref({ start: null, end: null })
   const filters = ref({
     status: null,
     category_id: null,
@@ -59,9 +61,19 @@ export const useTodoStore = defineStore('todo', () => {
     fetchItems()
   }
 
+  async function fetchCalendarItems(start, end) {
+    calendarRange.value = { start, end }
+    const { data } = await todoApi.getCalendarItems({
+      start: start.toISOString(),
+      end: end.toISOString(),
+    })
+    calendarItems.value = data.items
+  }
+
   return {
     categories, tags, items, total, currentItem, filters,
+    calendarItems, calendarRange,
     fetchCategories, fetchTags, fetchItems, selectItem,
-    setFilter, resetFilters,
+    setFilter, resetFilters, fetchCalendarItems,
   }
 })

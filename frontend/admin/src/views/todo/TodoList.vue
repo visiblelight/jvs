@@ -1,15 +1,5 @@
 <template>
   <div class="todo-list">
-    <div class="list-header">
-      <div class="header-info">
-        <h2 class="list-title">事项</h2>
-        <span class="list-count">{{ store.total }}</span>
-      </div>
-      <button class="btn-create" @click="$emit('create')">
-        <svg viewBox="0 0 16 16" fill="currentColor" width="14" height="14"><path d="M8 2a.75.75 0 01.75.75v4.5h4.5a.75.75 0 010 1.5h-4.5v4.5a.75.75 0 01-1.5 0v-4.5h-4.5a.75.75 0 010-1.5h4.5v-4.5A.75.75 0 018 2z"/></svg>
-        新建
-      </button>
-    </div>
     <div class="list-body">
       <div v-if="store.items.length === 0" class="list-empty">
         <svg viewBox="0 0 48 48" fill="none" width="48" height="48"><rect x="6" y="10" width="36" height="28" rx="4" stroke="currentColor" stroke-width="2"/><path d="M16 22h16M16 30h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
@@ -41,7 +31,8 @@
           <div class="item-badges">
             <span class="badge badge--priority" :class="'priority-' + item.priority">{{ getPriorityLabel(item.priority) }}</span>
             <span class="badge badge--importance">{{ getImportanceLabel(item.importance) }}</span>
-            <span v-if="item.due_date" class="badge badge--due" :class="{ overdue: isOverdue(item) }">{{ formatDate(item.due_date) }}</span>
+            <span v-if="item.due_date" class="badge badge--due" :class="{ overdue: isOverdue(item) }">📅 {{ formatDate(item.due_date) }}</span>
+            <span v-if="item.scheduled_at" class="badge badge--scheduled">🕐 {{ formatDate(item.scheduled_at) }}</span>
             <span
               v-for="tag in item.tags"
               :key="tag.id"
@@ -277,6 +268,11 @@ async function toggleStatus(item) {
 
 .badge--due.overdue {
   color: var(--color-danger);
+}
+
+.badge--scheduled {
+  color: var(--color-accent-text);
+  background: var(--color-accent-subtle);
 }
 
 .badge--tag {

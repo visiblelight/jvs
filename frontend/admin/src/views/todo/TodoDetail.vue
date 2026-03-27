@@ -43,6 +43,11 @@
         <span class="prop-value" :class="{ overdue: isOverdue }">{{ formatDate(store.currentItem.due_date) || '—' }}</span>
       </div>
 
+      <div v-if="store.currentItem.scheduled_at" class="prop">
+        <span class="prop-label">🕐 执行时间</span>
+        <span class="prop-value" style="color: var(--color-accent-text);">{{ formatDate(store.currentItem.scheduled_at) }}</span>
+      </div>
+
       <div class="prop">
         <span class="prop-label">创建时间</span>
         <span class="prop-value">{{ formatDate(store.currentItem.created_at) }}</span>

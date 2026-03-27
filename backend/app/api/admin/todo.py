@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -124,6 +125,17 @@ def delete_tag(
 
 
 # ── 事项 ──
+
+@router.get("/items/calendar", response_model=TodoItemListOut)
+def list_calendar_items(
+    start: datetime = Query(...),
+    end: datetime = Query(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    items = todo_svc.get_calendar_items(db, current_user.id, start, end)
+    return TodoItemListOut(items=items, total=len(items))
+
 
 @router.get("/items", response_model=TodoItemListOut)
 def list_items(
