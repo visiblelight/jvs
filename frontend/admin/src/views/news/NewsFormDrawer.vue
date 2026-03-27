@@ -55,7 +55,13 @@
 
           <div class="field-section" style="flex: 1; display: flex; flex-direction: column;">
             <label>正文 (Markdown 语法) <span class="required">*</span></label>
-            <textarea v-model="form.content" class="markdown-editor" placeholder="在此输入 Markdown 格式的文章正文..."></textarea>
+            <textarea
+              ref="contentEl"
+              v-model="form.content"
+              class="markdown-editor"
+              placeholder="在此输入 Markdown 格式的文章正文... （可 Ctrl+V 粘贴图片）"
+              @paste="handlePaste"
+            ></textarea>
           </div>
         </div>
 
@@ -71,9 +77,18 @@
 </template>
 
 <script setup>
-import { reactive } from 'vue'
+import { reactive, ref } from 'vue'
 import { useNewsStore } from '@/stores/news'
 import { createArticle, updateArticle } from '@/api/news'
+import { useImagePaste } from '@/composables/useImagePaste'
+
+const contentEl = ref(null)
+const { handlePaste } = useImagePaste({
+  module: 'news',
+  getValue: () => form.content,
+  setValue: (val) => { form.content = val },
+  getEl: () => contentEl.value,
+})
 
 const props = defineProps({
   editArticle: { type: Object, default: null },

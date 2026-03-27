@@ -55,6 +55,7 @@
 <script setup>
 import { computed } from 'vue'
 import { marked } from 'marked'
+import DOMPurify from 'dompurify'
 import { useNewsStore } from '@/stores/news'
 import { deleteArticle } from '@/api/news'
 
@@ -63,7 +64,7 @@ const store = useNewsStore()
 
 const renderedContent = computed(() => {
   if (!store.selectedArticle?.content) return ''
-  return marked(store.selectedArticle.content, { breaks: true })
+  return DOMPurify.sanitize(marked(store.selectedArticle.content, { breaks: true }))
 })
 
 function formatDate(d) {
@@ -288,6 +289,9 @@ async function handleDelete() {
 .markdown-body :deep(img) {
   max-width: 100%;
   border-radius: var(--radius-md);
+  margin: 8px 0;
+  display: block;
+  box-shadow: var(--shadow-sm);
 }
 
 .markdown-body :deep(table) {

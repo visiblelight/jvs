@@ -17,7 +17,13 @@
           </div>
           
           <div class="field">
-            <textarea v-model="form.description" rows="4" placeholder="添加详细描述..."></textarea>
+            <textarea
+              ref="descEl"
+              v-model="form.description"
+              rows="4"
+              placeholder="添加详细描述... （支持 Markdown，可 Ctrl+V 粘贴图片）"
+              @paste="handlePaste"
+            ></textarea>
           </div>
 
           <div class="field-section">
@@ -113,9 +119,18 @@
 </template>
 
 <script setup>
-import { computed, reactive } from 'vue'
+import { computed, reactive, ref } from 'vue'
 import { useTodoStore } from '@/stores/todo'
 import { createItem, updateItem } from '@/api/todo'
+import { useImagePaste } from '@/composables/useImagePaste'
+
+const descEl = ref(null)
+const { handlePaste } = useImagePaste({
+  module: 'todo',
+  getValue: () => form.description,
+  setValue: (val) => { form.description = val },
+  getEl: () => descEl.value,
+})
 
 const props = defineProps({
   editItem: { type: Object, default: null },

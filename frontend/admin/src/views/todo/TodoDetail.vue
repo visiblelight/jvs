@@ -15,6 +15,11 @@
     </div>
 
     <div class="detail-body">
+      <div class="desc-section" v-if="store.currentItem.description">
+        <span class="prop-label">描述</span>
+        <div class="desc-block markdown-body" v-html="renderMarkdown(store.currentItem.description)"></div>
+      </div>
+
       <div class="prop">
         <span class="prop-label">状态</span>
         <select class="prop-select" :value="store.currentItem.status" @change="handleStatusChange">
@@ -70,10 +75,6 @@
         </div>
       </div>
 
-      <div class="desc-section" v-if="store.currentItem.description">
-        <span class="prop-label">描述</span>
-        <div class="desc-block">{{ store.currentItem.description }}</div>
-      </div>
     </div>
 
     <!-- Custom Confirm Modal -->
@@ -102,6 +103,13 @@
 import { computed, ref } from 'vue'
 import { useTodoStore } from '@/stores/todo'
 import { updateItemStatus, deleteItem } from '@/api/todo'
+import { marked } from 'marked'
+import DOMPurify from 'dompurify'
+
+function renderMarkdown(text) {
+  if (!text) return ''
+  return DOMPurify.sanitize(marked.parse(text))
+}
 
 defineEmits(['edit'])
 
@@ -321,9 +329,9 @@ function handleDelete() {
 }
 
 .desc-section {
-  margin-top: 20px;
-  padding-top: 16px;
-  border-top: 1px solid var(--color-border-light);
+  margin-bottom: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--color-border-light);
 }
 
 .desc-block {
@@ -331,10 +339,89 @@ function handleDelete() {
   font-size: 13px;
   color: var(--color-text-secondary);
   line-height: 1.7;
-  white-space: pre-wrap;
-  background: var(--color-bg);
+  background: var(--color-bg-base);
   padding: 12px 16px;
   border-radius: var(--radius-md);
+}
+
+/* ── Markdown 渲染样式 ── */
+.markdown-body :deep(h1),
+.markdown-body :deep(h2),
+.markdown-body :deep(h3),
+.markdown-body :deep(h4) {
+  font-family: var(--font-heading);
+  font-weight: 700;
+  color: var(--color-text);
+  margin: 14px 0 6px;
+  line-height: 1.3;
+}
+.markdown-body :deep(h1) { font-size: 16px; }
+.markdown-body :deep(h2) { font-size: 14px; }
+.markdown-body :deep(h3) { font-size: 13px; }
+
+.markdown-body :deep(p) {
+  margin: 0 0 8px;
+}
+.markdown-body :deep(p:last-child) { margin-bottom: 0; }
+
+.markdown-body :deep(ul),
+.markdown-body :deep(ol) {
+  padding-left: 18px;
+  margin: 6px 0 8px;
+}
+.markdown-body :deep(li) { margin-bottom: 3px; }
+
+.markdown-body :deep(code) {
+  font-family: 'Menlo', 'Monaco', 'Consolas', monospace;
+  font-size: 12px;
+  background: var(--color-surface-hover);
+  color: var(--color-accent-text);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+
+.markdown-body :deep(pre) {
+  background: var(--color-surface-hover);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  overflow-x: auto;
+  margin: 8px 0;
+}
+.markdown-body :deep(pre code) {
+  background: none;
+  padding: 0;
+  color: var(--color-text);
+  font-size: 12px;
+}
+
+.markdown-body :deep(blockquote) {
+  border-left: 3px solid var(--color-accent);
+  margin: 8px 0;
+  padding: 4px 12px;
+  color: var(--color-text-tertiary);
+}
+
+.markdown-body :deep(a) {
+  color: var(--color-accent-text);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.markdown-body :deep(hr) {
+  border: none;
+  border-top: 1px solid var(--color-border-light);
+  margin: 12px 0;
+}
+
+.markdown-body :deep(strong) { color: var(--color-text); font-weight: 600; }
+.markdown-body :deep(em) { font-style: italic; }
+
+.markdown-body :deep(img) {
+  max-width: 100%;
+  border-radius: var(--radius-md);
+  margin: 8px 0;
+  display: block;
+  box-shadow: var(--shadow-sm);
 }
 
 .detail-badge {
