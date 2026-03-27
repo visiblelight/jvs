@@ -1,15 +1,43 @@
-name: Deploy to VPS (Plan 1)
+name: Test & Deploy
 
 on:
   push:
-    branches:
-      - main  # 当提交推送到 main 分支时自动触发
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
 
 jobs:
-  deploy:
-    name: Build & Deploy
+  # ── Job 1：运行测试 ──────────────────────────────────────────────────────────
+  test:
+    name: Backend API Tests
     runs-on: ubuntu-latest
-    
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 设置 Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+          cache-dependency-path: backend/requirements-dev.txt
+
+      - name: 安装依赖
+        working-directory: backend
+        run: pip install -r requirements-dev.txt
+
+      - name: 运行测试
+        working-directory: backend
+        run: python -m pytest tests/ -v --tb=short
+
+  # ── Job 2：部署（仅 push 到 main，且测试通过后执行）────────────────────────
+  deploy:
+    name: Deploy to VPS
+    runs-on: ubuntu-latest
+    needs: test                          # 测试通过才部署
+    if: github.event_name == 'push'      # PR 只跑测试，不部署
+
     steps:
       - name: 🚀 执行远程部署脚本
         uses: appleboy/ssh-action@v1.0.3
@@ -17,19 +45,16 @@ jobs:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USERNAME }}
           key: ${{ secrets.VPS_SSH_KEY }}
-          # 可选：如果 SSH 不是默认 22 端口，取消下方注释并修改
-          # port: ${{ secrets.VPS_PORT }}
           script: |
             echo "1. 正在进入部署目录..."
             cd ${{ secrets.VPS_PROJECT_DIR }}
-            
+
             echo "2. 正在拉取远端最新代码..."
             git reset --hard HEAD
             git pull origin main
-            
+
             echo "3. 开始运行一键构建重构..."
-            # 给定执行权限确保无阻
             chmod +x build-1.sh
             ./build-1.sh
-            
+
             echo "✅ 部署已成功执行完毕！"
