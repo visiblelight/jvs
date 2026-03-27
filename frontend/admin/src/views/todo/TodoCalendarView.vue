@@ -257,7 +257,7 @@ function expandItems(items) {
   const result = []
   for (const item of items) {
     if (item.scheduled_at) result.push({ ...item, _type: 'scheduled', _date: new Date(item.scheduled_at) })
-    if (item.due_date)     result.push({ ...item, _type: 'due',       _date: new Date(item.due_date) })
+    else if (item.due_date) result.push({ ...item, _type: 'due',      _date: new Date(item.due_date) })
   }
   return result.sort((a, b) => a._date - b._date)
 }
