@@ -1,11 +1,19 @@
 """
 图片上传测试：类型校验、大小校验、正常上传
+用 monkeypatch.chdir 将工作目录切到临时目录，uploads/ 会写到临时目录里，测试结束自动清理。
 """
 import io
+import pytest
 
 
 def make_image_file(content=b"fake-image-data", filename="test.png", content_type="image/png"):
     return ("file", (filename, io.BytesIO(content), content_type))
+
+
+@pytest.fixture(autouse=True)
+def use_tmp_uploads(monkeypatch, tmp_path):
+    """把工作目录切到临时目录，uploads/ 相对路径写入临时位置"""
+    monkeypatch.chdir(tmp_path)
 
 
 class TestUploads:
@@ -52,7 +60,6 @@ class TestUploads:
             headers=auth_headers,
         )
         assert resp.status_code == 201
-        # 净化后不应包含路径穿越字符
         assert "../" not in resp.json()["url"]
 
     def test_require_auth(self, client):

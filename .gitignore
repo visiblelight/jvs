@@ -28,11 +28,8 @@ backend/*.sqlite
 backend/*.sqlite3
 
 # ── 用户上传文件（保留目录结构，忽略内容）────────────────────────────────────
-backend/uploads/avatars/*
-!backend/uploads/avatars/.gitkeep
-backend/uploads/todo/*
-backend/uploads/news/*
-backend/uploads/general/*
+backend/uploads/**/*
+!backend/uploads/**/.gitkeep
 
 # ── Node.js ───────────────────────────────────────────────────────────────────
 node_modules/
