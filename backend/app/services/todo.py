@@ -144,8 +144,7 @@ def create_item(db: Session, user_id: int, tag_ids: list[int], **kwargs) -> Todo
 
 def update_item(db: Session, item: TodoItem, tag_ids: Optional[list[int]], user_id: int, **kwargs) -> TodoItem:
     for k, v in kwargs.items():
-        if v is not None:
-            setattr(item, k, v)
+        setattr(item, k, v)
     if tag_ids is not None:
         tags = db.query(TodoTag).filter(TodoTag.id.in_(tag_ids), TodoTag.user_id == user_id).all()
         item.tags = tags

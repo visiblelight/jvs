@@ -88,6 +88,7 @@ class TodoItemOut(BaseModel):
     importance: int
     status: str
     category_id: Optional[int]
+    category_name: Optional[str] = None
     due_date: Optional[datetime]
     scheduled_at: Optional[datetime]
     completed_at: Optional[datetime]

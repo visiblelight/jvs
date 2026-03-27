@@ -71,3 +71,7 @@ class TodoItem(Base):
 
     category = relationship("TodoCategory", back_populates="items", lazy="select")
     tags = relationship("TodoTag", secondary=todo_item_tags, lazy="selectin")
+
+    @property
+    def category_name(self) -> str | None:
+        return self.category.name if self.category else None

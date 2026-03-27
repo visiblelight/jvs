@@ -56,29 +56,37 @@
             </div>
           </div>
 
-          <div class="field-row">
-            <div class="field-section">
-              <label>分栏分类</label>
-              <select v-model="form.category_id" class="minimal-select">
-                <option :value="null">收件箱</option>
-                <template v-for="cat in flatCategories" :key="cat.id">
-                  <option :value="cat.id">{{ cat.prefix }}{{ cat.name }}</option>
-                </template>
-              </select>
-            </div>
-            <div class="field-section">
-              <label>截止日期</label>
-              <input v-model="form.due_date" type="datetime-local" class="minimal-select" />
-            </div>
+          <div class="field-section">
+            <label>分类</label>
+            <select v-model="form.category_id" class="minimal-select">
+              <option :value="null">未分类</option>
+              <template v-for="cat in flatCategories" :key="cat.id">
+                <option :value="cat.id">{{ cat.prefix }}{{ cat.name }}</option>
+              </template>
+            </select>
           </div>
 
           <div class="field-row">
             <div class="field-section">
-              <label>🕐 执行时间</label>
-              <input v-model="form.scheduled_at" type="datetime-local" class="minimal-select" />
-              <span class="field-hint">事项将在此时间点执行</span>
+              <label>
+                <span>指定执行时间</span>
+                <button type="button" class="toggle-btn" :class="{ on: hasScheduled }" @click="toggleScheduled">
+                  <span class="toggle-knob"></span>
+                </button>
+              </label>
+              <input v-if="hasScheduled" v-model="form.scheduled_at" type="datetime-local" class="minimal-select" required />
+              <span v-else class="field-hint">开启后需填写具体执行时间，截止时间将自动一致</span>
             </div>
-            <div class="field-section"></div>
+            <div class="field-section">
+              <label>截止日期</label>
+              <input
+                v-model="form.due_date"
+                type="datetime-local"
+                class="minimal-select"
+                :disabled="hasScheduled"
+              />
+              <span v-if="hasScheduled" class="field-hint">已指定执行时间，截止时间自动同步</span>
+            </div>
           </div>
 
           <div class="field-section">
@@ -111,7 +119,7 @@
 
         <div class="drawer-foot">
           <button type="button" class="btn-secondary active-scale" @click="$emit('close')">取消</button>
-          <button type="submit" class="btn-primary active-scale" @click="handleSubmit">{{ isEdit ? '保存更改' : '创建任务' }}</button>
+          <button type="submit" class="btn-primary active-scale" @click="handleSubmit">{{ isEdit ? '保存更改' : '创建事项' }}</button>
         </div>
       </div>
     </div>
@@ -149,17 +157,31 @@ function formatLocalDatetime(d) {
   return `${dt.getFullYear()}-${pad(dt.getMonth() + 1)}-${pad(dt.getDate())}T${pad(dt.getHours())}:${pad(dt.getMinutes())}`
 }
 
+// 是否指定执行时间（有 scheduled_at 则默认开启）
+const hasScheduled = ref(!!props.editItem?.scheduled_at)
+
 const form = reactive({
   title: props.editItem?.title || '',
   description: props.editItem?.description || '',
   priority: props.editItem?.priority || 3,
   importance: props.editItem?.importance || 3,
   category_id: props.editItem?.category_id || null,
-  due_date: formatLocalDatetime(props.editItem?.due_date) || '',
+  due_date: props.editItem?.scheduled_at ? '' : formatLocalDatetime(props.editItem?.due_date) || '',
   scheduled_at: formatLocalDatetime(props.editItem?.scheduled_at) || '',
   tag_ids: props.editItem?.tags?.map((t) => t.id) || [],
   status: props.editItem?.status || 'pending',
 })
+
+function toggleScheduled() {
+  hasScheduled.value = !hasScheduled.value
+  if (!hasScheduled.value) {
+    form.scheduled_at = ''
+  } else {
+    // 开启时用已有截止日期作为执行时间初始值
+    form.scheduled_at = form.due_date || ''
+    form.due_date = ''
+  }
+}
 
 const flatCategories = computed(() => {
   const result = []
@@ -174,14 +196,15 @@ const flatCategories = computed(() => {
 })
 
 async function handleSubmit() {
+  const scheduledIso = hasScheduled.value && form.scheduled_at ? new Date(form.scheduled_at).toISOString() : null
   const payload = {
     title: form.title,
     description: form.description || null,
     priority: form.priority,
     importance: form.importance,
     category_id: form.category_id || null,
-    due_date: form.due_date ? new Date(form.due_date).toISOString() : null,
-    scheduled_at: form.scheduled_at ? new Date(form.scheduled_at).toISOString() : null,
+    scheduled_at: scheduledIso,
+    due_date: hasScheduled.value ? scheduledIso : (form.due_date ? new Date(form.due_date).toISOString() : null),
     tag_ids: form.tag_ids,
   }
   if (isEdit.value) {
@@ -384,5 +407,34 @@ async function handleSubmit() {
   font-size: 11px;
   color: var(--color-text-tertiary);
   margin-top: 2px;
+}
+
+.toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  width: 36px;
+  height: 20px;
+  border-radius: var(--radius-pill);
+  border: none;
+  background: var(--color-border);
+  cursor: pointer;
+  padding: 2px;
+  margin-left: auto;
+  transition: background var(--transition-fast);
+  flex-shrink: 0;
+}
+.toggle-btn.on {
+  background: var(--color-accent);
+}
+.toggle-knob {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: white;
+  transition: transform var(--transition-fast);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+.toggle-btn.on .toggle-knob {
+  transform: translateX(16px);
 }
 </style>
