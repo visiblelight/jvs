@@ -1,6 +1,6 @@
 <template>
   <div class="todo-page">
-    <PageHeader title="待办" back-to="/home">
+    <PageHeader title="事项" back-to="/home">
       <template #right>
         <button class="filter-btn" @click="showFilter = true">
           <svg viewBox="0 0 24 24" fill="none" width="18" height="18">
@@ -32,7 +32,7 @@
           <rect x="8" y="6" width="32" height="36" rx="3" stroke="currentColor" stroke-width="1.5"/>
           <path d="M16 18h16M16 26h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
         </svg>
-        <p>暂无待办事项</p>
+        <p>暂无事项</p>
       </div>
 
       <div v-else class="item-list">
@@ -40,10 +40,10 @@
           v-for="item in store.items"
           :key="item.id"
           class="todo-item"
-          :class="{ done: item.status === 'done' }"
+          :class="{ done: item.status === 'completed' }"
         >
           <button class="check-btn" @click="toggleDone(item)">
-            <svg v-if="item.status === 'done'" viewBox="0 0 24 24" fill="none" width="20" height="20">
+            <svg v-if="item.status === 'completed'" viewBox="0 0 24 24" fill="none" width="20" height="20">
               <circle cx="12" cy="12" r="10" fill="var(--color-accent)"/>
               <path d="M7 12l4 4 6-7" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
@@ -55,12 +55,14 @@
           <div class="item-content" @click="openEdit(item)">
             <div class="item-title">{{ item.title }}</div>
             <div class="item-meta">
-              <span v-if="item.category" class="meta-tag">{{ item.category.name }}</span>
-              <span class="meta-priority" :class="'priority-' + item.priority">
-                {{ priorityLabel[item.priority] }}
+              <span v-if="item.category_name" class="meta-category">{{ item.category_name }}</span>
+              <span v-for="tag in item.tags" :key="tag.id" class="meta-tag" :style="{ '--tag-color': tag.color }">{{ tag.name }}</span>
+              <span v-if="item.importance >= 4" class="meta-importance" :class="{ critical: item.importance === 5 }">
+                {{ item.importance === 5 ? '极重要' : '重要' }}
               </span>
-              <span v-if="item.due_date" class="meta-due"
-                :class="{ overdue: isOverdue(item.due_date) && item.status !== 'done' }">
+              <span v-if="item.scheduled_at" class="meta-due">🕐 {{ formatDate(item.scheduled_at) }}</span>
+              <span v-else-if="item.due_date" class="meta-due"
+                :class="{ overdue: isOverdue(item.due_date) && item.status !== 'completed' }">
                 {{ formatDate(item.due_date) }}
               </span>
             </div>
@@ -133,17 +135,17 @@ const editItem = ref(null)
 
 const statusTabs = [
   { label: '全部', value: null },
-  { label: '进行中', value: 'pending' },
-  { label: '已完成', value: 'done' },
+  { label: '未完成', value: 'pending' },
+  { label: '已完成', value: 'completed' },
 ]
 
 const priorityOptions = [
-  { label: '高', value: 'high' },
-  { label: '中', value: 'medium' },
-  { label: '低', value: 'low' },
+  { label: '高', value: 4 },
+  { label: '中', value: 3 },
+  { label: '低', value: 2 },
 ]
 
-const priorityLabel = { high: '高', medium: '中', low: '低' }
+const priorityLabels = { 1: '极低', 2: '低', 3: '中', 4: '高', 5: '极高' }
 
 const hasFilter = computed(() =>
   store.filters.priority !== null || store.filters.category_id !== null
@@ -155,7 +157,7 @@ function openEdit(item) { editItem.value = item; showForm.value = true }
 function onSaved() { store.fetchItems() }
 
 async function toggleDone(item) {
-  await api.updateItem(item.id, { status: item.status === 'done' ? 'pending' : 'done' })
+  await api.updateItem(item.id, { status: item.status === 'completed' ? 'pending' : 'completed' })
   store.fetchItems()
 }
 
@@ -182,6 +184,7 @@ function formatDate(d) {
 
 onMounted(() => {
   store.fetchCategories()
+  store.fetchTags()
   store.fetchItems()
 })
 </script>
@@ -298,21 +301,29 @@ onMounted(() => {
 
 .item-meta { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 
+.meta-category {
+  font-size: 11px;
+  padding: 1px 8px;
+  background: var(--color-bg);
+  color: var(--color-text-secondary);
+  border-radius: 4px;
+  font-weight: 500;
+}
+
 .meta-tag {
   font-size: 11px;
   padding: 1px 8px;
-  background: var(--color-accent-subtle);
-  color: var(--color-accent-text);
+  background: color-mix(in srgb, var(--tag-color) 12%, transparent);
+  color: var(--tag-color);
   border-radius: var(--radius-full);
 }
 
-.meta-priority {
+.meta-importance {
   font-size: 11px;
-  font-weight: 500;
+  font-weight: 600;
+  color: var(--color-warning);
 }
-.priority-high  { color: var(--color-danger); }
-.priority-medium { color: var(--color-warning); }
-.priority-low   { color: var(--color-success); }
+.meta-importance.critical { color: var(--color-danger); }
 
 .meta-due { font-size: 12px; color: var(--color-text-tertiary); }
 .meta-due.overdue { color: var(--color-danger); }

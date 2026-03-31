@@ -27,6 +27,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { marked } from 'marked'
+import DOMPurify from 'dompurify'
 import { getArticle } from '@/api/news'
 import PageHeader from '@/components/PageHeader.vue'
 
@@ -36,7 +37,7 @@ const loading = ref(true)
 
 const renderedContent = computed(() => {
   if (!article.value?.content) return ''
-  return marked(article.value.content, { breaks: true })
+  return DOMPurify.sanitize(marked(article.value.content, { breaks: true }))
 })
 
 function formatDate(d) {
@@ -135,5 +136,5 @@ onMounted(async () => {
 .article-content :deep(blockquote){ border-left: 3px solid var(--color-border); padding: 10px 14px; color: var(--color-text-secondary); margin-bottom: 14px; }
 .article-content :deep(ul),
 .article-content :deep(ol)        { padding-left: 20px; margin-bottom: 14px; }
-.article-content :deep(img)       { max-width: 100%; border-radius: var(--radius-md); }
+.article-content :deep(img)       { max-width: 100%; border-radius: var(--radius-md); display: block; margin: 14px 0; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
 </style>
