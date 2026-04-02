@@ -59,10 +59,14 @@
 | description | Text | Nullable | null | 描述 |
 | priority | Integer | — | 3 | 优先级（1-5，1 最低 5 最高） |
 | importance | Integer | — | 3 | 重要程度（1-5，1 最低 5 最高） |
-| status | String(20) | — | pending | 状态：pending / paused / completed |
+| status | String(20) | — | pending | 状态：pending / paused / completed / archived |
 | category_id | Integer | FK → todo_categories.id, Nullable, ON DELETE SET NULL | null | 所属分类 |
 | due_date | DateTime | Nullable | null | 截止时间 |
-| completed_at | DateTime | Nullable | null | 完成时间 |
+| scheduled_at | DateTime | Nullable | null | 指定执行时间；设置后 due_date = scheduled_at |
+| completed_at | DateTime | Nullable | null | 完成时间；status 变为 completed 时自动填充 |
+| archived_at | DateTime | Nullable | null | 归档时间；status 变为 archived 时自动填充 |
+| is_deleted | Boolean | — | False | 软删除标记；True 表示已移入垃圾桶 |
+| deleted_at | DateTime | Nullable | null | 软删除时间 |
 | created_at | DateTime | — | now() | 创建时间（UTC） |
 | updated_at | DateTime | — | now() | 更新时间（UTC），自动更新 |
 

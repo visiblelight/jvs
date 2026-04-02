@@ -100,7 +100,7 @@ Base Path: `/api/admin/todo`
 
 | 参数 | 类型 | 说明 |
 |------|------|------|
-| status | string | 按状态筛选：pending / paused / completed |
+| status | string | 按状态筛选：pending / paused / completed / archived（不传则默认排除 archived） |
 | category_id | int | 按分类筛选 |
 | tag_id | int | 按标签筛选 |
 | priority | int | 按优先级筛选（1-5） |
@@ -164,4 +164,4 @@ Base Path: `/api/admin/todo`
 
 | 字段 | 类型 | 必填 | 说明 |
 |------|------|------|------|
-| status | string | 是 | pending / paused / completed |
+| status | string | 是 | pending / paused / completed / archived（仅 completed 可设为 archived，archived 需先回到 completed） |

@@ -77,7 +77,7 @@ class TodoItemUpdate(BaseModel):
 
 
 class TodoStatusUpdate(BaseModel):
-    status: str = Field(..., pattern="^(pending|paused|completed)$")
+    status: str = Field(..., pattern="^(pending|paused|completed|archived)$")
 
 
 class TodoItemOut(BaseModel):
@@ -92,6 +92,7 @@ class TodoItemOut(BaseModel):
     due_date: Optional[datetime]
     scheduled_at: Optional[datetime]
     completed_at: Optional[datetime]
+    archived_at: Optional[datetime]
     is_deleted: bool
     deleted_at: Optional[datetime]
     created_at: datetime

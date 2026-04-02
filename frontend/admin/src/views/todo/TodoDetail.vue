@@ -7,6 +7,14 @@
             <svg viewBox="0 0 16 16" fill="currentColor" width="14" height="14"><path d="M11.013 1.427a1.75 1.75 0 012.474 0l1.086 1.086a1.75 1.75 0 010 2.474l-8.61 8.61c-.21.21-.47.364-.756.445l-3.251.93a.75.75 0 01-.927-.928l.929-3.25a1.75 1.75 0 01.445-.758l8.61-8.61zm1.414 1.06a.25.25 0 00-.354 0L3.463 11.098a.25.25 0 00-.064.108l-.558 1.953 1.953-.558a.25.25 0 00.108-.064l8.61-8.61a.25.25 0 000-.354l-1.086-1.086z"/></svg>
             编辑
           </button>
+          <button v-if="store.currentItem.status === 'completed'" class="act-btn act-btn--archive" @click="handleArchive">
+            <svg viewBox="0 0 16 16" fill="currentColor" width="14" height="14"><path d="M1.75 2.5h12.5a.25.25 0 01.25.25v1.5a.25.25 0 01-.25.25H1.75a.25.25 0 01-.25-.25v-1.5a.25.25 0 01.25-.25zM0 2.75C0 1.784.784 1 1.75 1h12.5c.966 0 1.75.784 1.75 1.75v1.5A1.75 1.75 0 0114.25 6H1.75A1.75 1.75 0 010 4.25v-1.5zM1.75 7a.75.75 0 00-.75.75v5.5c0 .966.784 1.75 1.75 1.75h10.5A1.75 1.75 0 0015 13.25v-5.5a.75.75 0 00-1.5 0v5.5a.25.25 0 01-.25.25H2.75a.25.25 0 01-.25-.25v-5.5A.75.75 0 001.75 7zM6 9.25a.75.75 0 01.75-.75h2.5a.75.75 0 010 1.5h-2.5a.75.75 0 01-.75-.75z"/></svg>
+            归档
+          </button>
+          <button v-if="store.currentItem.status === 'archived'" class="act-btn act-btn--archive" @click="handleUnarchive">
+            <svg viewBox="0 0 16 16" fill="currentColor" width="14" height="14"><path d="M1.75 2.5h12.5a.25.25 0 01.25.25v1.5a.25.25 0 01-.25.25H1.75a.25.25 0 01-.25-.25v-1.5a.25.25 0 01.25-.25zM0 2.75C0 1.784.784 1 1.75 1h12.5c.966 0 1.75.784 1.75 1.75v1.5A1.75 1.75 0 0114.25 6H1.75A1.75 1.75 0 010 4.25v-1.5zM1.75 7a.75.75 0 00-.75.75v5.5c0 .966.784 1.75 1.75 1.75h10.5A1.75 1.75 0 0015 13.25v-5.5a.75.75 0 00-1.5 0v5.5a.25.25 0 01-.25.25H2.75a.25.25 0 01-.25-.25v-5.5A.75.75 0 001.75 7zM6 9.25a.75.75 0 01.75-.75h2.5a.75.75 0 010 1.5h-2.5a.75.75 0 01-.75-.75z"/></svg>
+            取消归档
+          </button>
           <button class="act-btn act-btn--danger" @click="handleDelete">
             <svg viewBox="0 0 16 16" fill="currentColor" width="14" height="14"><path d="M6.5 1.75a.25.25 0 01.25-.25h2.5a.25.25 0 01.25.25V3h-3V1.75zm4.5 0V3h2.25a.75.75 0 010 1.5H2.75a.75.75 0 010-1.5H5V1.75C5 .784 5.784 0 6.75 0h2.5C10.216 0 11 .784 11 1.75zM4.496 6.675a.75.75 0 10-1.492.15l.66 6.6A1.75 1.75 0 005.405 15h5.19a1.75 1.75 0 001.741-1.575l.66-6.6a.75.75 0 00-1.492-.15l-.66 6.6a.25.25 0 01-.249.225h-5.19a.25.25 0 01-.249-.225l-.66-6.6z"/></svg>
             删除
@@ -26,6 +34,7 @@
           <option value="pending">未完成</option>
           <option value="paused">暂停中</option>
           <option value="completed">已完成</option>
+          <option value="archived">已归档</option>
         </select>
       </div>
 
@@ -61,6 +70,11 @@
       <div v-if="store.currentItem.completed_at" class="prop">
         <span class="prop-label">完成时间</span>
         <span class="prop-value">{{ formatDate(store.currentItem.completed_at) }}</span>
+      </div>
+
+      <div v-if="store.currentItem.archived_at" class="prop">
+        <span class="prop-label">归档时间</span>
+        <span class="prop-value">{{ formatDate(store.currentItem.archived_at) }}</span>
       </div>
 
       <div class="prop" v-if="store.currentItem.tags.length">
@@ -162,6 +176,18 @@ async function handleStatusChange(e) {
   await store.selectItem(store.currentItem.id)
 }
 
+async function handleArchive() {
+  await updateItemStatus(store.currentItem.id, 'archived')
+  await store.fetchItems()
+  await store.selectItem(store.currentItem.id)
+}
+
+async function handleUnarchive() {
+  await updateItemStatus(store.currentItem.id, 'completed')
+  await store.fetchItems()
+  await store.selectItem(store.currentItem.id)
+}
+
 function handleDelete() {
   customConfirm(`确认将事项「${store.currentItem.title}」移至垃圾桶吗？您可以在垃圾桶找回它。`, async () => {
     await deleteItem(store.currentItem.id)
@@ -236,6 +262,15 @@ function handleDelete() {
 .act-btn--edit:hover {
   border-color: var(--color-accent);
   background: var(--color-accent-subtle);
+}
+
+.act-btn--archive {
+  color: var(--color-text-secondary);
+}
+
+.act-btn--archive:hover {
+  border-color: var(--color-text-tertiary);
+  background: var(--color-surface-hover);
 }
 
 .act-btn--danger {

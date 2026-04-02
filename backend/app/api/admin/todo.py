@@ -243,4 +243,10 @@ def update_item_status(
     item = db.query(TodoItem).filter(TodoItem.id == item_id, TodoItem.user_id == current_user.id).first()
     if not item:
         raise HTTPException(status_code=404, detail="事项不存在")
+    # 归档校验：仅已完成的事项可归档
+    if body.status == "archived" and item.status != "completed":
+        raise HTTPException(status_code=400, detail="仅已完成的事项可以归档")
+    # 取消归档只能回到 completed
+    if item.status == "archived" and body.status not in ("completed", "archived"):
+        raise HTTPException(status_code=400, detail="归档事项需先取消归档")
     return todo_svc.update_item(db, item, tag_ids=None, user_id=current_user.id, status=body.status)

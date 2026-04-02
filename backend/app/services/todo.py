@@ -112,6 +112,9 @@ def get_items(
 
     if status:
         query = query.filter(TodoItem.status == status)
+    else:
+        # 默认不显示归档事项
+        query = query.filter(TodoItem.status != "archived")
     if category_id is not None:
         query = query.filter(TodoItem.category_id == category_id)
     if tag_id is not None:
@@ -149,10 +152,18 @@ def update_item(db: Session, item: TodoItem, tag_ids: Optional[list[int]], user_
         tags = db.query(TodoTag).filter(TodoTag.id.in_(tag_ids), TodoTag.user_id == user_id).all()
         item.tags = tags
     # 自动设置完成时间
-    if kwargs.get("status") == "completed" and item.completed_at is None:
+    new_status = kwargs.get("status")
+    if new_status == "completed" and item.completed_at is None:
         item.completed_at = datetime.now(timezone.utc)
-    elif kwargs.get("status") and kwargs["status"] != "completed":
+    elif new_status and new_status not in ("completed", "archived"):
         item.completed_at = None
+    # 自动设置归档时间
+    if new_status == "archived":
+        item.archived_at = datetime.now(timezone.utc)
+        if item.completed_at is None:
+            item.completed_at = datetime.now(timezone.utc)
+    elif new_status and new_status != "archived":
+        item.archived_at = None
     db.commit()
     db.refresh(item)
     return item

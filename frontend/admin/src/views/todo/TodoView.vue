@@ -1,6 +1,6 @@
 <template>
   <div class="todo-page">
-    <TodoSidebar @open-search="showSearch = true" @open-trash="showTrash = true" />
+    <TodoSidebar @open-search="showSearch = true" @open-trash="showTrash = true" @open-archive="showArchive = true" />
     <div class="center-area">
       <div class="view-toggle-bar">
         <div class="segmented-control">
@@ -35,6 +35,7 @@
       @select="onSearchSelect" 
     />
     <TodoTrashModal v-model:visible="showTrash" />
+    <TodoArchiveModal v-model:visible="showArchive" />
   </div>
 </template>
 
@@ -48,6 +49,7 @@ import TodoDetail from './TodoDetail.vue'
 import TodoFormDrawer from './TodoFormDrawer.vue'
 import TodoSearchModal from './TodoSearchModal.vue'
 import TodoTrashModal from './TodoTrashModal.vue'
+import TodoArchiveModal from './TodoArchiveModal.vue'
 
 const store = useTodoStore()
 
@@ -55,6 +57,7 @@ const viewMode = ref('list')
 const showForm = ref(false)
 const showSearch = ref(false)
 const showTrash = ref(false)
+const showArchive = ref(false)
 const editItem = ref(null)
 
 function openCreate() {

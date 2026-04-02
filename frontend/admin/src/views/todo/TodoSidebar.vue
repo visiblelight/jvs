@@ -151,6 +151,16 @@
       <div class="tree-list">
         <button
           class="tree-item active-scale"
+          @click="$emit('open-archive')"
+          style="padding-left: 12px; margin-bottom: 4px;"
+        >
+          <span class="item-name" style="color: var(--color-text-secondary); display: flex; align-items: center; gap: 8px;">
+            <svg viewBox="0 0 16 16" fill="currentColor" width="14" height="14"><path d="M1.75 2.5h12.5a.25.25 0 01.25.25v1.5a.25.25 0 01-.25.25H1.75a.25.25 0 01-.25-.25v-1.5a.25.25 0 01.25-.25zM0 2.75C0 1.784.784 1 1.75 1h12.5c.966 0 1.75.784 1.75 1.75v1.5A1.75 1.75 0 0114.25 6H1.75A1.75 1.75 0 010 4.25v-1.5zM1.75 7a.75.75 0 00-.75.75v5.5c0 .966.784 1.75 1.75 1.75h10.5A1.75 1.75 0 0015 13.25v-5.5a.75.75 0 00-1.5 0v5.5a.25.25 0 01-.25.25H2.75a.25.25 0 01-.25-.25v-5.5A.75.75 0 001.75 7zM6 9.25a.75.75 0 01.75-.75h2.5a.75.75 0 010 1.5h-2.5a.75.75 0 01-.75-.75z"/></svg>
+            归档
+          </span>
+        </button>
+        <button
+          class="tree-item active-scale"
           @click="$emit('open-trash')"
           style="padding-left: 12px; margin-bottom: 4px;"
         >

@@ -5,61 +5,120 @@
         <svg viewBox="0 0 48 48" fill="none" width="48" height="48"><rect x="6" y="10" width="36" height="28" rx="4" stroke="currentColor" stroke-width="2"/><path d="M16 22h16M16 30h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
         <p>暂无事项</p>
       </div>
-      <div
-        v-for="item in store.items"
-        :key="item.id"
-        class="item-row"
-        :class="['priority-stripe--' + item.priority, { 'item-row--active': store.currentItem?.id === item.id }]"
-        @click="store.selectItem(item.id)"
-      >
-        <button class="check-btn" @click.stop="toggleStatus(item)" :disabled="store.filters.is_deleted">
-          <span
-            class="check-circle"
-            :class="{
-              'check-circle--done': item.status === 'completed',
-              'check-circle--paused': item.status === 'paused',
-              'check-circle--disabled': store.filters.is_deleted
-            }"
-          >
-            <svg v-if="item.status === 'completed'" viewBox="0 0 12 12" fill="none" width="10" height="10"><path d="M2.5 6l2.5 2.5 4.5-4.5" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          </span>
-        </button>
 
-        <div class="item-content">
-          <div class="item-top">
-            <span class="item-title" :class="{ 'item-title--done': item.status === 'completed' }">{{ item.title }}</span>
-            <span v-if="item.scheduled_at" class="time-badge time-badge--scheduled">🕐 {{ formatDate(item.scheduled_at) }}</span>
-            <span v-else-if="item.due_date" class="time-badge" :class="{ 'time-badge--overdue': isOverdue(item) }">📅 {{ formatDate(item.due_date) }}</span>
+      <template v-else>
+        <!-- 未完成区 -->
+        <div v-if="pendingItems.length" class="section">
+          <div class="section-header section-header--pending">
+            <span class="section-chip">
+              <span class="section-dot section-dot--pending"></span>
+              <span class="section-label">未完成</span>
+              <span class="section-count">{{ pendingItems.length }}</span>
+            </span>
+            <span class="section-rule"></span>
           </div>
+          <div
+            v-for="item in pendingItems"
+            :key="item.id"
+            class="item-row"
+            :class="{ 'item-row--active': store.currentItem?.id === item.id }"
+            @click="store.selectItem(item.id)"
+          >
+            <button class="check-btn" @click.stop="toggleStatus(item)" :disabled="store.filters.is_deleted">
+              <span
+                class="check-circle"
+                :class="{
+                  'check-circle--paused': item.status === 'paused',
+                  'check-circle--disabled': store.filters.is_deleted
+                }"
+              />
+            </button>
 
-          <div v-if="item.category_name || item.tags.length || item.importance >= 4" class="item-meta">
-            <span v-if="item.category_name" class="meta-category">
-              <svg viewBox="0 0 12 12" fill="currentColor" width="9" height="9" style="flex-shrink:0"><path d="M1 3.5A1.5 1.5 0 012.5 2h1.764a1.5 1.5 0 011.06.44L6 3.12l.676-.68A1.5 1.5 0 017.736 2H9.5A1.5 1.5 0 0111 3.5v5A1.5 1.5 0 019.5 10h-7A1.5 1.5 0 011 8.5v-5z"/></svg>
-              {{ item.category_name }}
-            </span>
-            <span
-              v-for="tag in item.tags"
-              :key="tag.id"
-              class="meta-tag"
-              :style="{ '--tag-color': tag.color }"
-            ><span class="tag-dot"></span>{{ tag.name }}</span>
-            <span v-if="item.importance >= 4" class="meta-importance" :class="{ 'meta-importance--5': item.importance === 5 }">
-              {{ item.importance === 5 ? '极其重要' : '非常重要' }}
-            </span>
+            <div class="item-content">
+              <div class="item-top">
+                <span class="item-title">{{ item.title }}</span>
+                <span v-if="item.scheduled_at" class="time-badge time-badge--scheduled">🕐 {{ formatDate(item.scheduled_at) }}</span>
+                <span v-else-if="item.due_date" class="time-badge" :class="{ 'time-badge--overdue': isOverdue(item) }">📅 {{ formatDate(item.due_date) }}</span>
+              </div>
+
+              <div v-if="item.category_name || item.tags.length || item.importance >= 4" class="item-meta">
+                <span v-if="item.category_name" class="meta-category">
+                  <svg viewBox="0 0 12 12" fill="currentColor" width="9" height="9" style="flex-shrink:0"><path d="M1 3.5A1.5 1.5 0 012.5 2h1.764a1.5 1.5 0 011.06.44L6 3.12l.676-.68A1.5 1.5 0 017.736 2H9.5A1.5 1.5 0 0111 3.5v5A1.5 1.5 0 019.5 10h-7A1.5 1.5 0 011 8.5v-5z"/></svg>
+                  {{ item.category_name }}
+                </span>
+                <span
+                  v-for="tag in item.tags"
+                  :key="tag.id"
+                  class="meta-tag"
+                  :style="{ '--tag-color': tag.color }"
+                ><span class="tag-dot"></span>{{ tag.name }}</span>
+                <span v-if="item.importance >= 4" class="meta-importance" :class="{ 'meta-importance--5': item.importance === 5 }">
+                  {{ item.importance === 5 ? '极其重要' : '非常重要' }}
+                </span>
+              </div>
+            </div>
           </div>
         </div>
-      </div>
+
+        <!-- 已完成区 -->
+        <div v-if="completedItems.length" class="section">
+          <div class="section-header section-header--completed section-header--collapsible" @click="showCompleted = !showCompleted">
+            <span class="section-chip">
+              <span class="section-dot section-dot--completed"></span>
+              <span class="section-label">已完成</span>
+              <span class="section-count">{{ completedItems.length }}</span>
+              <svg class="collapse-icon" :class="{ collapsed: !showCompleted }" viewBox="0 0 10 10" fill="none" width="10" height="10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M2 3.5l3 3 3-3"/>
+              </svg>
+            </span>
+            <span class="section-rule"></span>
+          </div>
+          <template v-if="showCompleted">
+            <div
+              v-for="item in completedItems"
+              :key="item.id"
+              class="item-row item-row--done"
+              :class="{ 'item-row--active': store.currentItem?.id === item.id }"
+              @click="store.selectItem(item.id)"
+            >
+              <button class="check-btn" @click.stop="toggleStatus(item)" :disabled="store.filters.is_deleted">
+                <span class="check-circle check-circle--done">
+                  <svg viewBox="0 0 12 12" fill="none" width="10" height="10"><path d="M2.5 6l2.5 2.5 4.5-4.5" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </span>
+              </button>
+
+              <div class="item-content">
+                <div class="item-top">
+                  <span class="item-title item-title--done">{{ item.title }}</span>
+                  <span v-if="item.scheduled_at" class="time-badge">{{ formatDate(item.scheduled_at) }}</span>
+                  <span v-else-if="item.due_date" class="time-badge">{{ formatDate(item.due_date) }}</span>
+                </div>
+              </div>
+            </div>
+          </template>
+        </div>
+      </template>
     </div>
   </div>
 </template>
 
 <script setup>
+import { ref, computed } from 'vue'
 import { useTodoStore } from '@/stores/todo'
 import { updateItemStatus } from '@/api/todo'
 
 defineEmits(['create'])
 
 const store = useTodoStore()
+const showCompleted = ref(true)
+
+const pendingItems = computed(() =>
+  store.items.filter(i => i.status !== 'completed' && i.status !== 'archived')
+)
+
+const completedItems = computed(() =>
+  store.items.filter(i => i.status === 'completed')
+)
 
 function formatDate(d) {
   if (!d) return ''
@@ -113,6 +172,102 @@ async function toggleStatus(item) {
   font-size: 14px;
 }
 
+/* ── 分区标题 —— 横线嵌浮标签 ── */
+.section-header {
+  --status-color: var(--color-text-tertiary);
+
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 0;
+  padding: 18px 20px 6px;
+
+  /* 背景需要遮住滚动内容 */
+  background: var(--color-surface);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+.section-header--pending  { --status-color: var(--color-status-pending); }
+.section-header--completed { --status-color: var(--color-status-completed); }
+
+.section-header--collapsible { cursor: pointer; user-select: none; }
+
+/* 浮标签 chip */
+.section-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px 3px 8px;
+  border-radius: 20px;
+  border: 1px solid color-mix(in srgb, var(--status-color) 30%, transparent);
+  background: color-mix(in srgb, var(--status-color) 8%, var(--color-surface));
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: background var(--transition-fast), border-color var(--transition-fast);
+}
+
+.section-header--collapsible:hover .section-chip {
+  background: color-mix(in srgb, var(--status-color) 15%, var(--color-surface));
+  border-color: color-mix(in srgb, var(--status-color) 50%, transparent);
+}
+
+/* 彩点 */
+.section-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.section-dot--pending   { background: var(--color-status-pending); }
+.section-dot--completed { background: var(--color-status-completed); }
+
+/* 标签文字 */
+.section-label {
+  font-family: var(--font-heading);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
+}
+
+/* 计数 */
+.section-count {
+  font-family: var(--font-body);
+  font-size: 10px;
+  font-weight: 700;
+  color: color-mix(in srgb, var(--status-color) 80%, var(--color-text-tertiary));
+  letter-spacing: 0.02em;
+}
+
+/* 向右延伸的渐隐线 */
+.section-rule {
+  flex: 1;
+  height: 1px;
+  margin-left: 10px;
+  background: linear-gradient(
+    to right,
+    color-mix(in srgb, var(--status-color) 25%, transparent),
+    transparent 70%
+  );
+}
+
+/* 折叠箭头 */
+.collapse-icon {
+  color: color-mix(in srgb, var(--status-color) 60%, transparent);
+  transition: transform 0.22s cubic-bezier(0.4, 0, 0.2, 1), color var(--transition-fast);
+  flex-shrink: 0;
+}
+.section-header--collapsible:hover .collapse-icon {
+  color: var(--status-color);
+}
+.collapse-icon.collapsed {
+  transform: rotate(-90deg);
+}
+
 /* 行整体 */
 .item-row {
   display: flex;
@@ -122,18 +277,15 @@ async function toggleStatus(item) {
   border-bottom: 1px solid var(--color-border-light);
   cursor: pointer;
   transition: background var(--transition-fast);
-  border-left: 3px solid transparent;
 }
 
 .item-row:hover { background: var(--color-surface-hover); }
 .item-row--active { background: var(--color-accent-subtle); }
 
-/* 优先级左边框 — 静默编码，不占额外空间 */
-.priority-stripe--1 { border-left-color: transparent; }
-.priority-stripe--2 { border-left-color: var(--color-border); }
-.priority-stripe--3 { border-left-color: #60a5fa; }
-.priority-stripe--4 { border-left-color: var(--color-warning); }
-.priority-stripe--5 { border-left-color: var(--color-danger); }
+.item-row--done {
+  opacity: 0.7;
+}
+
 
 /* 勾选按钮 */
 .check-btn {
