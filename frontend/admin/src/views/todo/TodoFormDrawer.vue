@@ -108,7 +108,15 @@
 
           <div v-if="isEdit" class="field-section">
             <label>当前状态</label>
-            <div class="segmented-control">
+            <div v-if="props.editItem.status === 'archived'" class="status-readonly">
+              <span class="status-badge status-badge--archived">已归档</span>
+              <span class="field-hint">归档状态请在详情面板操作</span>
+            </div>
+            <div v-else-if="props.editItem.status === 'completed'" class="segmented-control">
+              <button type="button" class="segment-btn active-scale" :class="{active: form.status === 'pending'}" @click="form.status='pending'">未完成</button>
+              <button type="button" class="segment-btn active-scale" :class="{active: form.status === 'completed'}" @click="form.status='completed'">已完成</button>
+            </div>
+            <div v-else class="segmented-control">
               <button type="button" class="segment-btn active-scale" :class="{active: form.status === 'pending'}" @click="form.status='pending'">未完成</button>
               <button type="button" class="segment-btn active-scale" :class="{active: form.status === 'paused'}" @click="form.status='paused'">暂停中</button>
               <button type="button" class="segment-btn active-scale" :class="{active: form.status === 'completed'}" @click="form.status='completed'">已完成</button>
@@ -407,6 +415,21 @@ async function handleSubmit() {
   font-size: 11px;
   color: var(--color-text-tertiary);
   margin-top: 2px;
+}
+
+.status-readonly {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.status-badge--archived {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 12px;
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-hover);
+  color: var(--color-text-tertiary);
 }
 
 .toggle-btn {

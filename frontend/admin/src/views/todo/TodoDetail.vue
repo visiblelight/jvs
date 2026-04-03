@@ -30,11 +30,15 @@
 
       <div class="prop">
         <span class="prop-label">状态</span>
-        <select class="prop-select" :value="store.currentItem.status" @change="handleStatusChange">
+        <span v-if="store.currentItem.status === 'archived'" class="status-archived-label">已归档（请使用「取消归档」按钮）</span>
+        <select v-else-if="store.currentItem.status === 'completed'" class="prop-select" :value="store.currentItem.status" @change="handleStatusChange">
+          <option value="pending">未完成</option>
+          <option value="completed">已完成</option>
+        </select>
+        <select v-else class="prop-select" :value="store.currentItem.status" @change="handleStatusChange">
           <option value="pending">未完成</option>
           <option value="paused">暂停中</option>
           <option value="completed">已完成</option>
-          <option value="archived">已归档</option>
         </select>
       </div>
 
@@ -486,6 +490,12 @@ async function handlePaste(e) {
 
 .prop-value.overdue {
   color: var(--color-danger);
+}
+
+.status-archived-label {
+  font-size: 12px;
+  color: var(--color-text-tertiary);
+  font-style: italic;
 }
 
 .prop-select {

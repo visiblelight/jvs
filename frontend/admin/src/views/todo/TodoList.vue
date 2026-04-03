@@ -12,7 +12,8 @@
           <div class="section-header section-header--pending">
             <span class="section-chip">
               <span class="section-dot section-dot--pending"></span>
-              <span class="section-label">未完成</span>
+              <span class="section-dot section-dot--paused"></span>
+              <span class="section-label">进行中</span>
               <span class="section-count">{{ pendingItems.length }}</span>
             </span>
             <span class="section-rule"></span>
@@ -226,6 +227,7 @@ async function toggleStatus(item) {
   flex-shrink: 0;
 }
 .section-dot--pending   { background: var(--color-status-pending); }
+.section-dot--paused    { background: var(--color-status-paused); }
 .section-dot--completed { background: var(--color-status-completed); }
 
 /* 标签文字 */
@@ -284,7 +286,8 @@ async function toggleStatus(item) {
 }
 
 .item-row:hover { background: var(--color-surface-hover); }
-.item-row--active { background: var(--color-accent-subtle); }
+.item-row--active,
+.item-row--active:hover { background: var(--color-accent-subtle); }
 
 .item-row--done {
   opacity: 0.7;

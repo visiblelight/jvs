@@ -9,25 +9,6 @@
       </button>
     </div>
 
-    <!-- Status -->
-    <div class="section">
-      <div class="section-head">
-        <h3 class="section-label">状态</h3>
-      </div>
-      <div class="filter-group">
-        <button
-          v-for="s in statusOptions"
-          :key="s.value"
-          class="filter-chip active-scale"
-          :class="{ active: store.filters.status === s.value }"
-          @click="store.setFilter('status', store.filters.status === s.value ? null : s.value)"
-        >
-          <span class="chip-dot" :style="{ background: s.color }"></span>
-          {{ s.label }}
-        </button>
-      </div>
-    </div>
-
     <!-- Categories -->
     <div class="section">
       <div class="section-head">
@@ -212,12 +193,6 @@ import { createCategory, deleteCategory, updateCategory, createTag, deleteTag, u
 import TodoCategoryTree from './TodoCategoryTree.vue'
 
 const store = useTodoStore()
-
-const statusOptions = [
-  { value: 'pending', label: '未完成', color: 'var(--color-status-pending)' },
-  { value: 'paused', label: '暂停中', color: 'var(--color-status-paused)' },
-  { value: 'completed', label: '已完成', color: 'var(--color-status-completed)' },
-]
 
 // --- Custom Confirm Modal Logic ---
 const confirmDialog = ref({
