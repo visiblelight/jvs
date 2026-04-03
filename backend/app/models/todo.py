@@ -73,7 +73,30 @@ class TodoItem(Base):
 
     category = relationship("TodoCategory", back_populates="items", lazy="select")
     tags = relationship("TodoTag", secondary=todo_item_tags, lazy="selectin")
+    comments = relationship("TodoComment", lazy="select",
+                            primaryjoin="and_(TodoComment.todo_item_id==TodoItem.id, TodoComment.deleted_at==None)",
+                            foreign_keys="TodoComment.todo_item_id")
 
     @property
     def category_name(self) -> str | None:
         return self.category.name if self.category else None
+
+    @property
+    def comment_count(self) -> int:
+        return len(self.comments) if self.comments is not None else 0
+
+
+class TodoComment(Base):
+    __tablename__ = "todo_comments"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    todo_item_id: Mapped[int] = mapped_column(Integer, ForeignKey("todo_items.id", ondelete="CASCADE"), nullable=False, index=True)
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+    )
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)

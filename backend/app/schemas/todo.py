@@ -99,6 +99,7 @@ class TodoItemOut(BaseModel):
     created_at: datetime
     updated_at: datetime
     tags: list[TagOut] = []
+    comment_count: int = 0
 
     model_config = {"from_attributes": True}
 
@@ -106,3 +107,22 @@ class TodoItemOut(BaseModel):
 class TodoItemListOut(BaseModel):
     items: list[TodoItemOut]
     total: int
+
+
+# ── 评论 ──
+
+class CommentCreate(BaseModel):
+    content: str = Field(..., min_length=1)
+
+
+class CommentUpdate(BaseModel):
+    content: str = Field(..., min_length=1)
+
+
+class CommentOut(BaseModel):
+    id: int
+    content: str
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = {"from_attributes": True}

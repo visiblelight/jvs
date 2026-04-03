@@ -41,7 +41,7 @@
                 <span v-else-if="item.due_date" class="time-badge" :class="{ 'time-badge--overdue': isOverdue(item) }">📅 {{ formatDate(item.due_date) }}</span>
               </div>
 
-              <div v-if="item.category_name || item.tags.length || item.importance >= 4" class="item-meta">
+              <div v-if="item.category_name || item.tags.length || item.importance >= 4 || item.comment_count > 0" class="item-meta">
                 <span v-if="item.category_name" class="meta-category">
                   <svg viewBox="0 0 12 12" fill="currentColor" width="9" height="9" style="flex-shrink:0"><path d="M1 3.5A1.5 1.5 0 012.5 2h1.764a1.5 1.5 0 011.06.44L6 3.12l.676-.68A1.5 1.5 0 017.736 2H9.5A1.5 1.5 0 0111 3.5v5A1.5 1.5 0 019.5 10h-7A1.5 1.5 0 011 8.5v-5z"/></svg>
                   {{ item.category_name }}
@@ -54,6 +54,10 @@
                 ><span class="tag-dot"></span>{{ tag.name }}</span>
                 <span v-if="item.importance >= 4" class="meta-importance" :class="{ 'meta-importance--5': item.importance === 5 }">
                   {{ item.importance === 5 ? '极其重要' : '非常重要' }}
+                </span>
+                <span v-if="item.comment_count > 0" class="meta-comments">
+                  <svg viewBox="0 0 12 12" fill="currentColor" width="9" height="9" style="flex-shrink:0"><path d="M1 2.5A1.5 1.5 0 012.5 1h7A1.5 1.5 0 0111 2.5v5A1.5 1.5 0 019.5 9H7l-2 2v-2H2.5A1.5 1.5 0 011 7.5v-5z"/></svg>
+                  {{ item.comment_count }}
                 </span>
               </div>
             </div>
@@ -424,5 +428,16 @@ async function toggleStatus(item) {
 .meta-importance--5 {
   color: var(--color-danger);
   background: rgba(239, 68, 68, 0.08);
+}
+
+/* 评论数 */
+.meta-comments {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--color-text-tertiary);
+  margin-left: auto;
 }
 </style>

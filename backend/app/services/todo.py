@@ -3,7 +3,7 @@ from typing import Optional
 
 from sqlalchemy.orm import Session
 
-from app.models.todo import TodoCategory, TodoItem, TodoTag, todo_item_tags
+from app.models.todo import TodoCategory, TodoComment, TodoItem, TodoTag, todo_item_tags
 
 
 # ── 分类 ──
@@ -187,6 +187,41 @@ def restore_item(db: Session, item: TodoItem) -> None:
 
 def hard_delete_item(db: Session, item: TodoItem) -> None:
     item.purged_at = datetime.now(timezone.utc)
+    db.commit()
+
+
+# ── 评论 ──
+
+def get_comments(db: Session, item_id: int, user_id: int) -> list[TodoComment]:
+    return (
+        db.query(TodoComment)
+        .filter(
+            TodoComment.todo_item_id == item_id,
+            TodoComment.user_id == user_id,
+            TodoComment.deleted_at == None,
+        )
+        .order_by(TodoComment.created_at.asc())
+        .all()
+    )
+
+
+def create_comment(db: Session, item_id: int, user_id: int, content: str) -> TodoComment:
+    comment = TodoComment(todo_item_id=item_id, user_id=user_id, content=content)
+    db.add(comment)
+    db.commit()
+    db.refresh(comment)
+    return comment
+
+
+def update_comment(db: Session, comment: TodoComment, content: str) -> TodoComment:
+    comment.content = content
+    db.commit()
+    db.refresh(comment)
+    return comment
+
+
+def delete_comment(db: Session, comment: TodoComment) -> None:
+    comment.deleted_at = datetime.now(timezone.utc)
     db.commit()
 
 

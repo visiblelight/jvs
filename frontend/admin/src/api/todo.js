@@ -22,3 +22,10 @@ export const updateItemStatus = (id, status) => request.patch(`/admin/todo/items
 export const restoreItem = (id) => request.post(`/admin/todo/items/${id}/restore`)
 export const hardDeleteItem = (id) => request.delete(`/admin/todo/items/${id}/hard`)
 export const getCalendarItems = (params) => request.get('/admin/todo/items/calendar', { params })
+
+// 评论
+export const getComments = (itemId) => request.get(`/admin/todo/items/${itemId}/comments`)
+export const createComment = (itemId, data) => request.post(`/admin/todo/items/${itemId}/comments`, data)
+export const updateComment = (itemId, commentId, data) => request.put(`/admin/todo/items/${itemId}/comments/${commentId}`, data)
+export const deleteComment = (itemId, commentId) => request.delete(`/admin/todo/items/${itemId}/comments/${commentId}`)
+

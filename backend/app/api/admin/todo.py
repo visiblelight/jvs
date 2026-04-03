@@ -5,12 +5,13 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.core.deps import get_current_user, get_db
-from app.models.todo import TodoCategory, TodoItem, TodoTag
+from app.models.todo import TodoCategory, TodoComment, TodoItem, TodoTag
 from app.models.user import User
 from app.schemas.todo import (
     CategoryCreate, CategoryItem, CategoryOut, CategoryUpdate,
     TagCreate, TagOut, TagUpdate,
     TodoItemCreate, TodoItemListOut, TodoItemOut, TodoItemUpdate, TodoStatusUpdate,
+    CommentCreate, CommentOut, CommentUpdate,
 )
 from app.services import todo as todo_svc
 
@@ -250,3 +251,67 @@ def update_item_status(
     if item.status == "archived" and body.status not in ("completed", "archived"):
         raise HTTPException(status_code=400, detail="归档事项需先取消归档")
     return todo_svc.update_item(db, item, tag_ids=None, user_id=current_user.id, status=body.status)
+
+
+# ── 评论 ──
+
+@router.get("/items/{item_id}/comments", response_model=list[CommentOut])
+def list_comments(
+    item_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    item = db.query(TodoItem).filter(TodoItem.id == item_id, TodoItem.user_id == current_user.id).first()
+    if not item:
+        raise HTTPException(status_code=404, detail="事项不存在")
+    return todo_svc.get_comments(db, item_id, current_user.id)
+
+
+@router.post("/items/{item_id}/comments", response_model=CommentOut, status_code=status.HTTP_201_CREATED)
+def create_comment(
+    item_id: int,
+    body: CommentCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    item = db.query(TodoItem).filter(TodoItem.id == item_id, TodoItem.user_id == current_user.id).first()
+    if not item:
+        raise HTTPException(status_code=404, detail="事项不存在")
+    return todo_svc.create_comment(db, item_id, current_user.id, body.content)
+
+
+@router.put("/items/{item_id}/comments/{comment_id}", response_model=CommentOut)
+def update_comment(
+    item_id: int,
+    comment_id: int,
+    body: CommentUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    comment = db.query(TodoComment).filter(
+        TodoComment.id == comment_id,
+        TodoComment.todo_item_id == item_id,
+        TodoComment.user_id == current_user.id,
+        TodoComment.deleted_at == None,
+    ).first()
+    if not comment:
+        raise HTTPException(status_code=404, detail="评论不存在")
+    return todo_svc.update_comment(db, comment, body.content)
+
+
+@router.delete("/items/{item_id}/comments/{comment_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_comment(
+    item_id: int,
+    comment_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    comment = db.query(TodoComment).filter(
+        TodoComment.id == comment_id,
+        TodoComment.todo_item_id == item_id,
+        TodoComment.user_id == current_user.id,
+        TodoComment.deleted_at == None,
+    ).first()
+    if not comment:
+        raise HTTPException(status_code=404, detail="评论不存在")
+    todo_svc.delete_comment(db, comment)

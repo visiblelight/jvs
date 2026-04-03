@@ -91,6 +91,74 @@
 
     </div>
 
+    <!-- 评论区 -->
+    <div class="comment-section">
+      <div class="comment-section-header">
+        <span class="comment-section-title">评论</span>
+        <span v-if="comments.length" class="comment-count-badge">{{ comments.length }}</span>
+      </div>
+
+      <div class="comment-list" ref="commentListRef">
+        <div
+          v-for="comment in comments"
+          :key="comment.id"
+          class="comment-item"
+          @mouseenter="comment._hover = true"
+          @mouseleave="comment._hover = false"
+        >
+          <div class="comment-avatar">
+            <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/></svg>
+          </div>
+          <div class="comment-body">
+            <div class="comment-meta">
+              <span class="comment-time" :title="formatDateFull(comment.created_at)">{{ timeAgo(comment.created_at) }}</span>
+              <span v-if="comment.updated_at !== comment.created_at" class="comment-edited">已编辑</span>
+              <span class="comment-actions" :class="{ 'comment-actions--visible': comment._hover && editingCommentId !== comment.id }">
+                <button class="comment-act-btn" @click="startEdit(comment)">编辑</button>
+                <button class="comment-act-btn comment-act-btn--danger" @click="confirmDeleteComment(comment)">删除</button>
+              </span>
+            </div>
+            <div v-if="editingCommentId !== comment.id" class="comment-content markdown-body" v-html="renderMarkdown(comment.content)"></div>
+            <div v-else class="comment-edit-area">
+              <textarea
+                v-model="editingContent"
+                class="comment-textarea"
+                @keydown.esc="cancelEdit"
+                @keydown.enter.meta.prevent="saveEdit(comment)"
+                @keydown.enter.ctrl.prevent="saveEdit(comment)"
+                ref="editTextareaRef"
+                rows="3"
+              ></textarea>
+              <div class="comment-edit-actions">
+                <button class="comment-save-btn" @click="saveEdit(comment)">保存</button>
+                <button class="comment-cancel-btn" @click="cancelEdit">取消</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div v-if="comments.length === 0" class="comment-empty">暂无评论</div>
+      </div>
+
+      <div class="comment-input-area">
+        <textarea
+          v-model="newComment"
+          class="comment-textarea"
+          placeholder="添加评论…支持 Markdown，可粘贴图片"
+          @keydown.meta.enter.prevent="submitComment"
+          @keydown.ctrl.enter.prevent="submitComment"
+          @paste="handlePaste"
+          ref="newCommentRef"
+          rows="3"
+        ></textarea>
+        <div class="comment-input-foot">
+          <span class="comment-hint">⌘ Enter 发送</span>
+          <button class="comment-submit-btn" :disabled="!newComment.trim() || submitting" @click="submitComment">
+            {{ submitting ? '发送中…' : '发送' }}
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- Custom Confirm Modal -->
     <Teleport to="body">
       <div v-if="confirmDialog.show" class="modal-overlay" @click.self="cancelConfirm">
@@ -101,7 +169,7 @@
           </div>
           <div class="confirm-foot">
             <button class="btn-cancel active-scale" @click="cancelConfirm">取消</button>
-            <button class="btn-danger active-scale" @click="executeConfirm">确认删除</button>
+            <button class="btn-danger active-scale" @click="executeConfirm">{{ confirmDialog.confirmText }}</button>
           </div>
         </div>
       </div>
@@ -114,9 +182,10 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, ref, watch, nextTick } from 'vue'
 import { useTodoStore } from '@/stores/todo'
-import { updateItemStatus, deleteItem } from '@/api/todo'
+import { updateItemStatus, deleteItem, getComments, createComment, updateComment, deleteComment } from '@/api/todo'
+import { uploadImage } from '@/api/uploads'
 import { marked } from 'marked'
 import DOMPurify from 'dompurify'
 
@@ -138,21 +207,16 @@ const getImportanceLabel = (n) => importances[n - 1] || '无'
 const confirmDialog = ref({
   show: false,
   message: '',
-  actionCb: null
+  actionCb: null,
+  confirmText: '确认删除',
 })
 
-function customConfirm(message, callback) {
-  confirmDialog.value = {
-    show: true,
-    message,
-    actionCb: callback
-  }
+function customConfirm(message, callback, confirmText = '确认删除') {
+  confirmDialog.value = { show: true, message, actionCb: callback, confirmText }
 }
 
 function executeConfirm() {
-  if (confirmDialog.value.actionCb) {
-    confirmDialog.value.actionCb()
-  }
+  if (confirmDialog.value.actionCb) confirmDialog.value.actionCb()
   confirmDialog.value.show = false
 }
 
@@ -168,6 +232,24 @@ const isOverdue = computed(() => {
 function formatDate(d) {
   if (!d) return ''
   return new Date(d).toLocaleString('zh-CN', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+}
+
+function formatDateFull(d) {
+  if (!d) return ''
+  return new Date(d).toLocaleString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' })
+}
+
+function timeAgo(d) {
+  if (!d) return ''
+  const diff = Date.now() - new Date(d).getTime()
+  const min = Math.floor(diff / 60000)
+  if (min < 1) return '刚刚'
+  if (min < 60) return `${min} 分钟前`
+  const hr = Math.floor(min / 60)
+  if (hr < 24) return `${hr} 小时前`
+  const day = Math.floor(hr / 24)
+  if (day < 30) return `${day} 天前`
+  return formatDate(d)
 }
 
 async function handleStatusChange(e) {
@@ -194,6 +276,104 @@ function handleDelete() {
     store.currentItem = null
     await store.fetchItems()
   })
+}
+
+// ── 评论 ──
+const comments = ref([])
+const newComment = ref('')
+const submitting = ref(false)
+const editingCommentId = ref(null)
+const editingContent = ref('')
+const commentListRef = ref(null)
+const newCommentRef = ref(null)
+const editTextareaRef = ref(null)
+
+watch(() => store.currentItem?.id, async (id) => {
+  comments.value = []
+  editingCommentId.value = null
+  if (id) await loadComments(id)
+}, { immediate: true })
+
+async function loadComments(itemId) {
+  const res = await getComments(itemId)
+  comments.value = res.data.map(c => ({ ...c, _hover: false }))
+}
+
+async function submitComment() {
+  const content = newComment.value.trim()
+  if (!content || submitting.value) return
+  submitting.value = true
+  try {
+    await createComment(store.currentItem.id, { content })
+    newComment.value = ''
+    await loadComments(store.currentItem.id)
+    await store.selectItem(store.currentItem.id) // refresh comment_count
+    await nextTick()
+    scrollCommentsToBottom()
+  } finally {
+    submitting.value = false
+  }
+}
+
+function scrollCommentsToBottom() {
+  if (commentListRef.value) {
+    commentListRef.value.scrollTop = commentListRef.value.scrollHeight
+  }
+}
+
+function startEdit(comment) {
+  editingCommentId.value = comment.id
+  editingContent.value = comment.content
+  nextTick(() => {
+    if (editTextareaRef.value) {
+      const el = Array.isArray(editTextareaRef.value) ? editTextareaRef.value[0] : editTextareaRef.value
+      el?.focus()
+    }
+  })
+}
+
+function cancelEdit() {
+  editingCommentId.value = null
+  editingContent.value = ''
+}
+
+async function saveEdit(comment) {
+  const content = editingContent.value.trim()
+  if (!content) return
+  await updateComment(store.currentItem.id, comment.id, { content })
+  cancelEdit()
+  await loadComments(store.currentItem.id)
+}
+
+function confirmDeleteComment(comment) {
+  customConfirm('确认删除这条评论吗？', async () => {
+    await deleteComment(store.currentItem.id, comment.id)
+    await loadComments(store.currentItem.id)
+    await store.selectItem(store.currentItem.id) // refresh comment_count
+  })
+}
+
+async function handlePaste(e) {
+  const items = e.clipboardData?.items
+  if (!items) return
+  for (const item of items) {
+    if (item.type.startsWith('image/')) {
+      e.preventDefault()
+      const file = item.getAsFile()
+      const placeholder = '![上传中…]()'
+      const textarea = newCommentRef.value
+      const pos = textarea.selectionStart
+      newComment.value = newComment.value.slice(0, pos) + placeholder + newComment.value.slice(pos)
+      try {
+        const res = await uploadImage(file, 'todo')
+        const url = res.data.url
+        newComment.value = newComment.value.replace(placeholder, `![图片](${url})`)
+      } catch {
+        newComment.value = newComment.value.replace(placeholder, '')
+      }
+      break
+    }
+  }
 }
 </script>
 
@@ -473,6 +653,237 @@ function handleDelete() {
   background: rgba(217, 119, 6, 0.1);
   color: var(--color-warning);
 }
+
+/* ── 评论区 ── */
+.comment-section {
+  border-top: 1px solid var(--color-border-light);
+  padding: 20px;
+}
+
+.comment-section-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.comment-section-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.comment-count-badge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--color-surface-hover);
+  color: var(--color-text-tertiary);
+}
+
+.comment-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-bottom: 16px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.comment-empty {
+  font-size: 13px;
+  color: var(--color-text-tertiary);
+  text-align: center;
+  padding: 12px 0;
+}
+
+.comment-item {
+  display: flex;
+  gap: 10px;
+}
+
+.comment-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--color-surface-hover);
+  color: var(--color-text-tertiary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.comment-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.comment-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.comment-time {
+  font-size: 12px;
+  color: var(--color-text-tertiary);
+  cursor: default;
+}
+
+.comment-edited {
+  font-size: 11px;
+  color: var(--color-text-tertiary);
+  font-style: italic;
+}
+
+.comment-actions {
+  display: flex;
+  gap: 4px;
+  margin-left: auto;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--transition-fast);
+}
+
+.comment-actions--visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.comment-act-btn {
+  font-size: 12px;
+  padding: 2px 8px;
+  border: 1px solid var(--color-border);
+  background: none;
+  border-radius: 4px;
+  cursor: pointer;
+  color: var(--color-text-secondary);
+  transition: all var(--transition-fast);
+}
+
+.comment-act-btn:hover {
+  border-color: var(--color-accent);
+  color: var(--color-accent-text);
+  background: var(--color-accent-subtle);
+}
+
+.comment-act-btn--danger:hover {
+  border-color: var(--color-danger);
+  color: var(--color-danger);
+  background: rgba(220, 38, 38, 0.06);
+}
+
+.comment-content {
+  font-size: 13px;
+  color: var(--color-text);
+  line-height: 1.6;
+}
+
+.comment-edit-area {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.comment-edit-actions {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+.comment-save-btn {
+  padding: 5px 14px;
+  background: var(--color-accent);
+  color: white;
+  border: none;
+  border-radius: var(--radius-pill);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity var(--transition-fast);
+}
+
+.comment-save-btn:hover { opacity: 0.85; }
+
+.comment-cancel-btn {
+  padding: 5px 14px;
+  background: none;
+  border: 1px solid var(--color-border);
+  color: var(--color-text-secondary);
+  border-radius: var(--radius-pill);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.comment-cancel-btn:hover {
+  background: var(--color-surface-hover);
+}
+
+.comment-input-area {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  transition: border-color var(--transition-fast);
+}
+
+.comment-input-area:focus-within {
+  border-color: var(--color-accent);
+}
+
+.comment-textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: none;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-family: var(--font-body);
+  font-size: 13px;
+  line-height: 1.6;
+  resize: none;
+  outline: none;
+  box-sizing: border-box;
+  field-sizing: content;
+  min-height: 72px;
+}
+
+.comment-input-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-top: 1px solid var(--color-border-light);
+  background: var(--color-bg-base);
+}
+
+.comment-hint {
+  font-size: 11px;
+  color: var(--color-text-tertiary);
+}
+
+.comment-submit-btn {
+  padding: 5px 16px;
+  background: var(--color-accent);
+  color: white;
+  border: none;
+  border-radius: var(--radius-pill);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity var(--transition-fast);
+}
+
+.comment-submit-btn:hover:not(:disabled) { opacity: 0.85; }
+.comment-submit-btn:disabled { opacity: 0.45; cursor: not-allowed; }
 
 /* --- Confirm Modal --- */
 .confirm-modal {

@@ -187,6 +187,21 @@
         </div>
       </div>
     </Teleport>
+
+    <!-- Error Dialog -->
+    <Teleport to="body">
+      <div v-if="errorDialog.show" class="modal-overlay" @click.self="errorDialog.show = false">
+        <div class="confirm-modal active-scale" @click.stop>
+          <div class="confirm-body">
+            <h3>无法删除</h3>
+            <p>{{ errorDialog.message }}</p>
+          </div>
+          <div class="confirm-foot">
+            <button class="btn-cancel active-scale" @click="errorDialog.show = false">知道了</button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>
 
@@ -210,6 +225,8 @@ const confirmDialog = ref({
   message: '',
   actionCb: null
 })
+
+const errorDialog = ref({ show: false, message: '' })
 
 function customConfirm(message, callback) {
   confirmDialog.value = {
@@ -263,9 +280,14 @@ async function handleSubmitEditCat(payload) {
 
 function confirmDeleteCategory(cat) {
   customConfirm(`确认删除分类「${cat.name}」吗？关联事项不会被删除，但将失去该分类标签。`, async () => {
-    await deleteCategory(cat.id)
-    await store.fetchCategories()
-    store.fetchItems()
+    try {
+      await deleteCategory(cat.id)
+      await store.fetchCategories()
+      store.fetchItems()
+    } catch (e) {
+      const msg = e.response?.data?.detail || '删除失败'
+      errorDialog.value = { show: true, message: msg }
+    }
   })
 }
 
