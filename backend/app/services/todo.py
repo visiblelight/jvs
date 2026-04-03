@@ -101,7 +101,11 @@ def get_items(
     page: int = 1,
     page_size: int = 50,
 ) -> tuple[list[TodoItem], int]:
-    query = db.query(TodoItem).filter(TodoItem.user_id == user_id, TodoItem.is_deleted == is_deleted)
+    query = db.query(TodoItem).filter(
+        TodoItem.user_id == user_id,
+        TodoItem.is_deleted == is_deleted,
+        TodoItem.purged_at == None,
+    )
 
     if search:
         search_pattern = f"%{search}%"
@@ -182,7 +186,7 @@ def restore_item(db: Session, item: TodoItem) -> None:
 
 
 def hard_delete_item(db: Session, item: TodoItem) -> None:
-    db.delete(item)
+    item.purged_at = datetime.now(timezone.utc)
     db.commit()
 
 
@@ -197,6 +201,7 @@ def get_calendar_items(
         .filter(
             TodoItem.user_id == user_id,
             TodoItem.is_deleted == False,
+            TodoItem.purged_at == None,
             or_(
                 and_(TodoItem.due_date != None, TodoItem.due_date >= start, TodoItem.due_date < end),
                 and_(TodoItem.scheduled_at != None, TodoItem.scheduled_at >= start, TodoItem.scheduled_at < end),

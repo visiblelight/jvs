@@ -67,6 +67,7 @@
 | archived_at | DateTime | Nullable | null | 归档时间；status 变为 archived 时自动填充 |
 | is_deleted | Boolean | — | False | 软删除标记；True 表示已移入垃圾桶 |
 | deleted_at | DateTime | Nullable | null | 软删除时间 |
+| purged_at | DateTime | Nullable | null | 二级软删除时间；用户在垃圾桶执行"永久删除"时设置，数据永久保留在库中，对所有接口不可见 |
 | created_at | DateTime | — | now() | 创建时间（UTC） |
 | updated_at | DateTime | — | now() | 更新时间（UTC），自动更新 |
 

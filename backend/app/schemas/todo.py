@@ -95,6 +95,7 @@ class TodoItemOut(BaseModel):
     archived_at: Optional[datetime]
     is_deleted: bool
     deleted_at: Optional[datetime]
+    purged_at: Optional[datetime]
     created_at: datetime
     updated_at: datetime
     tags: list[TagOut] = []

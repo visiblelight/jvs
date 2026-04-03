@@ -61,6 +61,7 @@ class TodoItem(Base):
     archived_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     is_deleted: Mapped[bool] = mapped_column(Boolean, default=False)
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    purged_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime, default=lambda: datetime.now(timezone.utc)
     )
