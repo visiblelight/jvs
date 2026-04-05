@@ -33,7 +33,7 @@ def upgrade() -> None:
     bind = op.get_bind()
     now = datetime.now(timezone.utc)
     users = bind.execute(sa.text(
-        "SELECT id FROM users WHERE is_superuser = 0 OR is_superuser IS NULL"
+        "SELECT id FROM users WHERE is_superuser = false OR is_superuser IS NULL"
     )).fetchall()
     rows = [
         {"user_id": u.id, "module_key": m["key"], "granted_at": now}
