@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 
-from sqlalchemy import Boolean, DateTime, Integer, String
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
 
@@ -22,4 +22,28 @@ class User(Base):
         DateTime,
         default=lambda: datetime.now(timezone.utc),
         onupdate=lambda: datetime.now(timezone.utc),
+    )
+
+    modules = relationship(
+        "UserModule",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+    )
+
+
+class UserModule(Base):
+    """用户与板块的多对多关联。
+
+    - 超管不写入此表（代码层直通全部板块）
+    - module_key 值来自 app/core/modules.py 的 MODULES
+    """
+
+    __tablename__ = "user_modules"
+
+    user_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+    )
+    module_key: Mapped[str] = mapped_column(String(32), primary_key=True)
+    granted_at: Mapped[datetime] = mapped_column(
+        DateTime, default=lambda: datetime.now(timezone.utc)
     )

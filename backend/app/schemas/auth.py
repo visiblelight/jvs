@@ -20,6 +20,7 @@ class UserInfo(BaseModel):
     is_superuser: bool
     avatar: str | None = None
     created_at: datetime | None = None
+    modules: list[str] = []
 
     model_config = {"from_attributes": True}
 

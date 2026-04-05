@@ -11,8 +11,9 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from app.core.database import SessionLocal
+from app.core.modules import MODULES
 from app.core.security import hash_password
-from app.models.user import User
+from app.models.user import User, UserModule
 
 
 def main():
@@ -30,8 +31,11 @@ def main():
             is_superuser=False,
         )
         db.add(demo)
+        db.flush()
+        for m in MODULES:
+            db.add(UserModule(user_id=demo.id, module_key=m["key"]))
         db.commit()
-        print("demo 账号创建成功：demo / demo123456")
+        print("demo 账号创建成功：demo / demo123456（已授予全部板块权限）")
     finally:
         db.close()
 

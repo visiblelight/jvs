@@ -3,7 +3,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_current_user, get_db
+from app.core.deps import get_current_user, get_db, require_module
 from app.models.news import NewsArticle, NewsCategory, NewsSource
 from app.models.user import User
 from app.schemas.news import (
@@ -13,7 +13,11 @@ from app.schemas.news import (
 )
 from app.services import news as news_svc
 
-router = APIRouter(prefix="/news", tags=["admin-news"])
+router = APIRouter(
+    prefix="/news",
+    tags=["admin-news"],
+    dependencies=[Depends(require_module("news"))],
+)
 
 
 # ── 分类 ──

@@ -3,13 +3,17 @@ import json
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_current_user, get_db
+from app.core.deps import get_current_user, get_db, require_module
 from app.core.scopes import AVAILABLE_SCOPES
 from app.models.access_key import AccessKey
 from app.models.user import User
 from app.schemas.access_key import AccessKeyCreate, AccessKeyOut, AccessKeyUpdate, ScopeItem
 
-router = APIRouter(prefix="/access-keys", tags=["admin-access-keys"])
+router = APIRouter(
+    prefix="/access-keys",
+    tags=["admin-access-keys"],
+    dependencies=[Depends(require_module("access_key"))],
+)
 
 
 @router.get("/scopes", response_model=list[ScopeItem])

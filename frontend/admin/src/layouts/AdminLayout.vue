@@ -21,7 +21,7 @@
 
       <nav class="sidebar-nav">
         <div
-          v-for="item in menuItems"
+          v-for="item in visibleMenuItems"
           :key="item.path"
           class="nav-item-wrap"
         >
@@ -74,6 +74,7 @@
 </template>
 
 <script setup>
+import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useThemeStore } from '@/stores/theme'
@@ -92,14 +93,28 @@ const menuItems = [
   {
     path: '/todo',
     label: 'ToDo',
+    module: 'todo',
     svg: '<path d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 011 1v3.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-1.5-1.5a1 1 0 111.414-1.414l.793.793V8a1 1 0 011-1z"/>',
   },
   {
     path: '/news',
     label: '新闻',
+    module: 'news',
     svg: '<path d="M2 3a1 1 0 011-1h11a1 1 0 011 1v2.586l1.707-1.293A1 1 0 0118 5.414V14.586a1 1 0 01-1.707.707L14 13.586V16a1 1 0 01-1 1H3a1 1 0 01-1-1V3zm12 10V5H4v10h10zM6 7h6v2H6V7zm0 3h4v2H6v-2z"/>',
   },
+  {
+    path: '/users',
+    label: '用户管理',
+    superuser: true,
+    svg: '<path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z"/>',
+  },
 ]
+
+const visibleMenuItems = computed(() => menuItems.filter((item) => {
+  if (item.superuser) return authStore.isSuperuser
+  if (item.module) return authStore.canAccess(item.module)
+  return true
+}))
 </script>
 
 <style scoped>

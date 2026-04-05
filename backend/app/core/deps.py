@@ -3,12 +3,13 @@ from typing import Generator
 from fastapi import Depends, Header, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import jwt, JWTError
+from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.database import SessionLocal
 from app.core.security import ALGORITHM
 from app.models.access_key import AccessKey
-from app.models.user import User
+from app.models.user import User, UserModule
 
 security_scheme = HTTPBearer()
 
@@ -40,6 +41,42 @@ def get_current_user(
     if not user.is_active:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="用户已被禁用")
     return user
+
+
+def require_superuser(current_user: User = Depends(get_current_user)) -> User:
+    if not current_user.is_superuser:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="仅超级管理员可访问",
+        )
+    return current_user
+
+
+def require_module(module_key: str):
+    """依赖工厂：要求当前用户拥有指定板块权限。超管直通。"""
+
+    def _dependency(
+        current_user: User = Depends(get_current_user),
+        db: Session = Depends(get_db),
+    ) -> User:
+        if current_user.is_superuser:
+            return current_user
+        has = (
+            db.query(UserModule)
+            .filter(
+                UserModule.user_id == current_user.id,
+                UserModule.module_key == module_key,
+            )
+            .first()
+        )
+        if not has:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"没有 '{module_key}' 板块权限",
+            )
+        return current_user
+
+    return _dependency
 
 
 def verify_access_key(

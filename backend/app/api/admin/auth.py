@@ -36,7 +36,15 @@ def login(body: LoginRequest, db: Session = Depends(get_db)):
 
 @router.get("/me", response_model=UserInfo)
 def get_me(current_user: User = Depends(get_current_user)):
-    return current_user
+    return UserInfo(
+        id=current_user.id,
+        username=current_user.username,
+        is_active=current_user.is_active,
+        is_superuser=current_user.is_superuser,
+        avatar=current_user.avatar,
+        created_at=current_user.created_at,
+        modules=[m.module_key for m in current_user.modules],
+    )
 
 
 @router.put("/password", status_code=status.HTTP_204_NO_CONTENT)

@@ -51,4 +51,10 @@ def test_protected_route_with_valid_token(client, auth_headers):
 def test_get_me(client, auth_headers, test_user):
     resp = client.get("/api/admin/auth/me", headers=auth_headers)
     assert resp.status_code == 200
-    assert resp.json()["username"] == test_user.username
+    data = resp.json()
+    assert data["username"] == test_user.username
+    assert "modules" in data
+    assert "is_superuser" in data
+    assert data["is_superuser"] is False
+    # test_user 默认授予全部模块
+    assert set(data["modules"]) >= {"todo", "news", "access_key"}

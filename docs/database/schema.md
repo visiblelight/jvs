@@ -16,7 +16,28 @@
 | is_active | Boolean | — | True | 是否启用 |
 | is_superuser | Boolean | — | False | 是否超级管理员 |
 | created_at | DateTime | — | now() | 创建时间（UTC） |
+| avatar | String(255) | Nullable | null | 头像文件名 |
 | updated_at | DateTime | — | now() | 更新时间（UTC），自动更新 |
+
+---
+
+## user_modules — 用户板块权限表
+
+用户与板块（module）的多对多关联。超级管理员隐式拥有全部板块权限，不写入本表；普通用户仅能访问本表授权过的板块。覆盖式更新：前端保存时先删后插。
+
+| 字段 | 类型 | 约束 | 默认值 | 说明 |
+|------|------|------|--------|------|
+| user_id | Integer | PK, FK → users.id, ON DELETE CASCADE | — | 用户 ID |
+| module_key | String(32) | PK | — | 板块标识（见下表） |
+| granted_at | DateTime | — | now() | 授权时间（UTC） |
+
+**内置板块（见 `app/core/modules.py`）**:
+
+| key | label | sort_order |
+|-----|-------|------------|
+| todo | 事项管理 | 10 |
+| news | 新闻资讯 | 20 |
+| access_key | 开放接口 | 30 |
 
 ---
 

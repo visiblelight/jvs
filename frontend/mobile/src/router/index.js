@@ -10,9 +10,9 @@ const routes = [
       { path: '', redirect: '/home' },
       { path: 'home',    name: 'home',    component: () => import('@/views/HomeView.vue'),              meta: { tabBar: true } },
       { path: 'profile', name: 'profile', component: () => import('@/views/profile/ProfileView.vue'),   meta: { tabBar: true } },
-      { path: 'todo',    name: 'todo',    component: () => import('@/views/todo/TodoView.vue') },
-      { path: 'news',    name: 'news',    component: () => import('@/views/news/NewsView.vue') },
-      { path: 'news/:id', name: 'news-detail', component: () => import('@/views/news/NewsDetailView.vue') },
+      { path: 'todo',    name: 'todo',    component: () => import('@/views/todo/TodoView.vue'),         meta: { module: 'todo' } },
+      { path: 'news',    name: 'news',    component: () => import('@/views/news/NewsView.vue'),         meta: { module: 'news' } },
+      { path: 'news/:id', name: 'news-detail', component: () => import('@/views/news/NewsDetailView.vue'), meta: { module: 'news' } },
     ],
   },
 ]
@@ -26,17 +26,21 @@ router.beforeEach(async (to, from, next) => {
   const token = localStorage.getItem('token')
   if (to.meta.guest) {
     token ? next('/home') : next()
-  } else {
-    if (!token) {
-      next('/login')
-    } else {
-      const authStore = useAuthStore()
-      if (!authStore.user) {
-        try { await authStore.fetchUser() } catch { next('/login'); return }
-      }
-      next()
-    }
+    return
   }
+  if (!token) {
+    next('/login')
+    return
+  }
+  const authStore = useAuthStore()
+  if (!authStore.user) {
+    try { await authStore.fetchUser() } catch { next('/login'); return }
+  }
+  if (to.meta.module && !authStore.canAccess(to.meta.module)) {
+    next('/home')
+    return
+  }
+  next()
 })
 
 export default router

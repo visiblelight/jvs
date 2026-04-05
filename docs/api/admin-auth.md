@@ -50,9 +50,14 @@ Authorization: Bearer <access_token>
   "id": 1,
   "username": "admin",
   "is_active": true,
-  "is_superuser": true
+  "is_superuser": true,
+  "avatar": null,
+  "created_at": "2026-01-01T00:00:00Z",
+  "modules": ["todo", "news", "access_key"]
 }
 ```
+
+> 超级管理员的 `modules` 始终为空数组（隐式拥有全部板块权限）；普通用户则按授权列出。
 
 **失败响应**:
 

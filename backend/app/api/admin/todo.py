@@ -4,7 +4,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_current_user, get_db
+from app.core.deps import get_current_user, get_db, require_module
 from app.models.todo import TodoCategory, TodoComment, TodoItem, TodoTag
 from app.models.user import User
 from app.schemas.todo import (
@@ -15,7 +15,11 @@ from app.schemas.todo import (
 )
 from app.services import todo as todo_svc
 
-router = APIRouter(prefix="/todo", tags=["admin-todo"])
+router = APIRouter(
+    prefix="/todo",
+    tags=["admin-todo"],
+    dependencies=[Depends(require_module("todo"))],
+)
 
 
 # ── 分类 ──

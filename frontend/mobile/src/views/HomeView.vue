@@ -14,13 +14,13 @@
       </router-link>
     </header>
 
-    <div class="stats-strip">
-      <div class="stat-item">
+    <div v-if="showTodoStat || showNewsStat" class="stats-strip">
+      <div v-if="showTodoStat" class="stat-item">
         <span class="stat-value">{{ todoStore.total }}</span>
         <span class="stat-label">待办事项</span>
       </div>
-      <div class="stat-divider" />
-      <div class="stat-item">
+      <div v-if="showTodoStat && showNewsStat" class="stat-divider" />
+      <div v-if="showNewsStat" class="stat-item">
         <span class="stat-value">{{ newsStore.total }}</span>
         <span class="stat-label">新闻文章</span>
       </div>
@@ -28,9 +28,12 @@
 
     <div class="section-label">工作台</div>
 
-    <div class="modules-grid">
+    <div v-if="visibleModules.length === 0" class="no-modules">
+      暂无可用板块，请联系管理员开通权限
+    </div>
+    <div v-else class="modules-grid">
       <button
-        v-for="mod in modules"
+        v-for="mod in visibleModules"
         :key="mod.path"
         class="module-card"
         @click="$router.push(mod.path)"
@@ -70,6 +73,7 @@ const modules = [
     name: '待办',
     desc: 'Todo 任务管理',
     path: '/todo',
+    moduleKey: 'todo',
     bg: 'linear-gradient(135deg, #4F46E5, #7C3AED)',
     svg: '<path d="M9 11l3 3L22 4" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>',
   },
@@ -77,14 +81,22 @@ const modules = [
     name: '新闻',
     desc: '文章资讯阅读',
     path: '/news',
+    moduleKey: 'news',
     bg: 'linear-gradient(135deg, #0EA5E9, #0284C7)',
     svg: '<path d="M4 6h16M4 10h16M4 14h10M4 18h7" stroke="white" stroke-width="2" stroke-linecap="round"/>',
   },
 ]
 
+const visibleModules = computed(() =>
+  modules.filter((m) => authStore.canAccess(m.moduleKey))
+)
+
+const showTodoStat = computed(() => authStore.canAccess('todo'))
+const showNewsStat = computed(() => authStore.canAccess('news'))
+
 onMounted(() => {
-  todoStore.fetchItems()
-  newsStore.fetchArticles(true)
+  if (authStore.canAccess('todo')) todoStore.fetchItems()
+  if (authStore.canAccess('news')) newsStore.fetchArticles(true)
 })
 </script>
 
@@ -161,6 +173,17 @@ onMounted(() => {
   letter-spacing: 0.5px;
   text-transform: uppercase;
   padding: 0 20px 12px;
+}
+
+.no-modules {
+  margin: 8px 16px 32px;
+  padding: 32px 16px;
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  text-align: center;
+  font-size: 13px;
+  color: var(--color-text-tertiary);
+  box-shadow: var(--shadow-sm);
 }
 
 .modules-grid {
