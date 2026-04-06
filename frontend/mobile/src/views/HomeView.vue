@@ -14,16 +14,14 @@
       </router-link>
     </header>
 
-    <div v-if="showTodoStat || showNewsStat" class="stats-strip">
-      <div v-if="showTodoStat" class="stat-item">
-        <span class="stat-value">{{ todoStore.total }}</span>
-        <span class="stat-label">待办事项</span>
-      </div>
-      <div v-if="showTodoStat && showNewsStat" class="stat-divider" />
-      <div v-if="showNewsStat" class="stat-item">
-        <span class="stat-value">{{ newsStore.total }}</span>
-        <span class="stat-label">新闻文章</span>
-      </div>
+    <div v-if="statItems.length" class="stats-strip">
+      <template v-for="(st, i) in statItems" :key="st.label">
+        <div v-if="i > 0" class="stat-divider" />
+        <div class="stat-item">
+          <span class="stat-value">{{ st.value }}</span>
+          <span class="stat-label">{{ st.label }}</span>
+        </div>
+      </template>
     </div>
 
     <div class="section-label">工作台</div>
@@ -52,11 +50,13 @@
 import { computed, onMounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useTodoStore } from '@/stores/todo'
+import { useTickStore } from '@/stores/tick'
 import { useNewsStore } from '@/stores/news'
 import UserAvatar from '@/components/UserAvatar.vue'
 
 const authStore = useAuthStore()
 const todoStore = useTodoStore()
+const tickStore = useTickStore()
 const newsStore = useNewsStore()
 
 const greeting = computed(() => {
@@ -78,6 +78,14 @@ const modules = [
     svg: '<path d="M9 11l3 3L22 4" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>',
   },
   {
+    name: '打卡',
+    desc: '习惯养成追踪',
+    path: '/tick',
+    moduleKey: 'tick',
+    bg: 'linear-gradient(135deg, #F59E0B, #D97706)',
+    svg: '<path d="M9 11l3 3L22 4" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="12" r="9" stroke="white" stroke-width="2"/>',
+  },
+  {
     name: '新闻',
     desc: '文章资讯阅读',
     path: '/news',
@@ -91,11 +99,17 @@ const visibleModules = computed(() =>
   modules.filter((m) => authStore.canAccess(m.moduleKey))
 )
 
-const showTodoStat = computed(() => authStore.canAccess('todo'))
-const showNewsStat = computed(() => authStore.canAccess('news'))
+const statItems = computed(() => {
+  const items = []
+  if (authStore.canAccess('todo')) items.push({ value: todoStore.total, label: '待办事项' })
+  if (authStore.canAccess('tick')) items.push({ value: tickStore.total, label: '打卡任务' })
+  if (authStore.canAccess('news')) items.push({ value: newsStore.total, label: '新闻文章' })
+  return items
+})
 
 onMounted(() => {
   if (authStore.canAccess('todo')) todoStore.fetchItems()
+  if (authStore.canAccess('tick')) tickStore.fetchTasks()
   if (authStore.canAccess('news')) newsStore.fetchArticles(true)
 })
 </script>

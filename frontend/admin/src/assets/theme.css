@@ -10,8 +10,8 @@
 /* ── Light Theme ── */
 :root,
 [data-theme="light"] {
-  --font-body: 'Manrope', -apple-system, BlinkMacSystemFont, sans-serif;
-  --font-heading: 'Syne', 'Manrope', sans-serif;
+  --font-body: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-heading: 'Outfit', 'Inter', sans-serif;
 
   /* Surfaces & Glassmorphism */
   --color-bg-base: #EBEDF0;

@@ -153,6 +153,47 @@ Markdown 格式文章，支持全文搜索。
 
 ---
 
+## tick_tasks — 打卡任务表
+
+用户创建的习惯打卡任务，支持每天/每周/每月频率，可选质量评价和阶梯积分。
+
+| 字段 | 类型 | 约束 | 默认值 | 说明 |
+|------|------|------|--------|------|
+| id | Integer | PK, Auto Increment | — | 主键 |
+| user_id | Integer | FK → users.id, Not Null, Index | — | 所属用户 |
+| title | String(200) | Not Null | — | 任务标题 |
+| description | Text | Nullable | null | 任务描述（Markdown） |
+| frequency | String(10) | Not Null | — | 周期频率：daily / weekly / monthly |
+| frequency_config | Text (JSON) | Not Null | `{}` | 具体执行时间配置 |
+| start_date | Date | Not Null | — | 有效期开始日期 |
+| end_date | Date | Nullable | null | 有效期结束日期（null=永久） |
+| enable_quality | Boolean | — | False | 是否启用打卡质量评价 |
+| enable_points | Boolean | — | False | 是否启用积分 |
+| points_rule | Text (JSON) | Not Null | `[]` | 阶梯积分规则 |
+| is_archived | Boolean | — | False | 是否已归档 |
+| created_at | DateTime | — | now() | 创建时间（UTC） |
+| updated_at | DateTime | — | now() | 更新时间（UTC），自动更新 |
+
+---
+
+## tick_logs — 打卡日志表
+
+每次打卡产生的记录。(task_id, period_key) 联合唯一，保证每个任务每个周期最多一条日志。
+
+| 字段 | 类型 | 约束 | 默认值 | 说明 |
+|------|------|------|--------|------|
+| id | Integer | PK, Auto Increment | — | 主键 |
+| user_id | Integer | FK → users.id, Not Null, Index | — | 所属用户 |
+| task_id | Integer | FK → tick_tasks.id, ON DELETE CASCADE, Index | — | 关联任务 |
+| ticked_at | DateTime | Not Null | — | 打卡时间 |
+| period_key | String(10) | Not Null, UQ(task_id, period_key) | — | 周期标识：daily=`2026-04-06`，weekly=`2026-W15`，monthly=`2026-04` |
+| quality | Integer | Nullable | null | 打卡质量 1-5 |
+| note | Text | Nullable | null | 备注（Markdown） |
+| points_earned | Integer | Not Null | 0 | 本次获得积分 |
+| created_at | DateTime | — | now() | 创建时间（UTC） |
+
+---
+
 ## access_keys — 开放 API 密钥表
 
 用于 Agent 通过开放 API 提交数据的鉴权密钥，每个 Key 归属一个用户。

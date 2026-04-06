@@ -11,6 +11,7 @@ const routes = [
       { path: 'home',    name: 'home',    component: () => import('@/views/HomeView.vue'),              meta: { tabBar: true } },
       { path: 'profile', name: 'profile', component: () => import('@/views/profile/ProfileView.vue'),   meta: { tabBar: true } },
       { path: 'todo',    name: 'todo',    component: () => import('@/views/todo/TodoView.vue'),         meta: { module: 'todo' } },
+      { path: 'tick',    name: 'tick',    component: () => import('@/views/tick/TickView.vue'),         meta: { module: 'tick' } },
       { path: 'news',    name: 'news',    component: () => import('@/views/news/NewsView.vue'),         meta: { module: 'news' } },
       { path: 'news/:id', name: 'news-detail', component: () => import('@/views/news/NewsDetailView.vue'), meta: { module: 'news' } },
     ],

@@ -8,6 +8,7 @@
 
 MODULES = [
     {"key": "todo",       "label": "事项管理", "sort_order": 10},
+    {"key": "tick",       "label": "打卡管理", "sort_order": 15},
     {"key": "news",       "label": "新闻资讯", "sort_order": 20},
     {"key": "access_key", "label": "开放接口", "sort_order": 30},
 ]

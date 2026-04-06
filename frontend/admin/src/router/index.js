@@ -6,6 +6,7 @@ import DashboardView from '@/views/DashboardView.vue'
 import TodoView from '@/views/todo/TodoView.vue'
 import NewsView from '@/views/news/NewsView.vue'
 import ProfileView from '@/views/profile/ProfileView.vue'
+import TickView from '@/views/tick/TickView.vue'
 import UsersView from '@/views/users/UsersView.vue'
 
 const routes = [
@@ -33,6 +34,12 @@ const routes = [
         name: 'todo',
         component: TodoView,
         meta: { module: 'todo' },
+      },
+      {
+        path: 'tick',
+        name: 'tick',
+        component: TickView,
+        meta: { module: 'tick' },
       },
       {
         path: 'news',

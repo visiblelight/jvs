@@ -17,6 +17,7 @@ from app.models.user import User, UserModule
 import app.models.todo       # noqa: F401
 import app.models.news       # noqa: F401
 import app.models.access_key # noqa: F401
+import app.models.tick       # noqa: F401
 from main import app
 
 
