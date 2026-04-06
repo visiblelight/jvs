@@ -91,15 +91,19 @@
           <div class="calendar-top">
             <div class="calendar-header-left">
                <h2>📅 打卡足迹</h2>
-               <div class="calendar-filters">
-                  <button type="button" 
-                          class="pill-btn" 
-                          :class="{ active: calendarFilterIds.includes(t.id) }" 
-                          v-for="t in tasks" 
-                          :key="t.id" 
-                          @click="toggleCalendarFilter(t.id)">
-                     {{ t.title }}
+               <div class="filter-dropdown-container" @click.stop>
+                  <button type="button" class="btn-secondary filter-trigger" @click="showCalendarFilterMenu = !showCalendarFilterMenu; showDrawerFilterMenu = false">
+                     <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V19l-4 2v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/></svg>
+                     筛选视图任务 <span v-if="calendarFilterIds.length < tasks.length">({{ calendarFilterIds.length }}/{{ tasks.length }})</span>
                   </button>
+                  <div v-show="showCalendarFilterMenu" class="dropdown-menu popup-menu filter-menu">
+                     <label class="filter-option all-option">
+                        <input type="checkbox" :checked="calendarFilterIds.length === tasks.length" @change="toggleAllCalendarFilter" /> 全选
+                     </label>
+                     <label class="filter-option" v-for="t in tasks" :key="t.id">
+                        <input type="checkbox" :checked="calendarFilterIds.includes(t.id)" @change="toggleCalendarFilter(t.id)" /> <span class="task-opt-title">{{ t.title }}</span>
+                     </label>
+                  </div>
                </div>
             </div>
             <div class="month-nav">
@@ -288,9 +292,19 @@
                       <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
                    </button>
                 </div>
-                <div class="filter-pills">
-                   <button class="pill-btn active-scale" :class="{active: filterTaskId === ''}" @click="filterTaskId = ''">所有记录</button>
-                   <button class="pill-btn active-scale" v-for="t in allTasks" :key="t.id" :class="{active: filterTaskId === t.id}" @click="filterTaskId = t.id">{{ t.title }}</button>
+                <div class="filter-dropdown-container" @click.stop>
+                   <button type="button" class="btn-secondary filter-trigger" @click="showDrawerFilterMenu = !showDrawerFilterMenu; showCalendarFilterMenu = false">
+                      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V19l-4 2v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/></svg>
+                      筛选记录 <span v-if="drawerFilterIds.length < allTasks.length">({{ drawerFilterIds.length }}/{{ allTasks.length }})</span>
+                   </button>
+                   <div v-show="showDrawerFilterMenu" class="dropdown-menu popup-menu filter-menu">
+                      <label class="filter-option all-option">
+                         <input type="checkbox" :checked="drawerFilterIds.length === allTasks.length" @change="toggleAllDrawerFilter" /> 全选记录
+                      </label>
+                      <label class="filter-option" v-for="t in allTasks" :key="t.id">
+                         <input type="checkbox" :checked="drawerFilterIds.includes(t.id)" @change="toggleDrawerFilter(t.id)" /> <span class="task-opt-title">{{ t.title }}</span>
+                      </label>
+                   </div>
                 </div>
              </div>
              <div class="drawer-body logs-container" style="max-height: calc(100vh - 160px); padding: 0; background: var(--color-bg-base);">
@@ -364,7 +378,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, reactive } from 'vue'
+import { ref, computed, onMounted, onUnmounted, reactive } from 'vue'
 import * as api from '@/api/tick'
 
 const loading = ref(true)
@@ -377,6 +391,14 @@ const showTooltip = (e, item) => { tooltipState.item = item; tooltipState.visibl
 const hideTooltip = () => { tooltipState.visible = false; tooltipState.item = null; }
 const moveTooltip = (e) => { if(tooltipState.visible) { tooltipState.x = e.clientX + 15; tooltipState.y = e.clientY + 15; } }
 
+const showCalendarFilterMenu = ref(false)
+const showDrawerFilterMenu = ref(false)
+
+const handleOutsideClick = () => {
+    showCalendarFilterMenu.value = false;
+    showDrawerFilterMenu.value = false;
+}
+
 const calendarFilterIds = ref([])
 const toggleCalendarFilter = (id) => {
     if (calendarFilterIds.value.includes(id)) {
@@ -384,6 +406,23 @@ const toggleCalendarFilter = (id) => {
     } else {
         calendarFilterIds.value.push(id)
     }
+}
+const toggleAllCalendarFilter = (e) => {
+    if (e.target.checked) calendarFilterIds.value = tasks.value.map(t => t.id)
+    else calendarFilterIds.value = []
+}
+
+const drawerFilterIds = ref([])
+const toggleDrawerFilter = (id) => {
+    if (drawerFilterIds.value.includes(id)) {
+        drawerFilterIds.value = drawerFilterIds.value.filter(x => x !== id)
+    } else {
+        drawerFilterIds.value.push(id)
+    }
+}
+const toggleAllDrawerFilter = (e) => {
+    if (e.target.checked) drawerFilterIds.value = allTasks.value.map(t => t.id)
+    else drawerFilterIds.value = []
 }
 
 const currentDate = ref(new Date())
@@ -428,6 +467,10 @@ const loadData = async () => {
 
 onMounted(() => {
    loadData()
+   document.addEventListener('click', handleOutsideClick)
+})
+onUnmounted(() => {
+   document.removeEventListener('click', handleOutsideClick)
 })
 
 // --- Pending Tasks ---
@@ -707,11 +750,9 @@ const executeDelete = async () => {
 // --- Global Logs Viewer ---
 const showGlobalLogsDrawer = ref(false)
 const globalListLogs = ref([])
-const filterTaskId = ref('')
 
 const filteredListLogs = computed(() => {
-    if (!filterTaskId.value) return globalListLogs.value;
-    return globalListLogs.value.filter(log => log.task_id === filterTaskId.value)
+    return globalListLogs.value.filter(log => drawerFilterIds.value.includes(log.task_id))
 })
 
 const getTaskValue = (id, key) => { const t = allTasks.value.find(x => x.id === id); return t ? t[key] : '' }
@@ -723,6 +764,9 @@ const openGlobalLogsModal = async () => {
         globalListLogs.value = data.items || []
         // Sort descending
         globalListLogs.value.sort((a,b) => new Date(b.ticked_at) - new Date(a.ticked_at))
+        if (drawerFilterIds.value.length === 0) {
+            drawerFilterIds.value = allTasks.value.map(t => t.id)
+        }
     } catch(e) { 
         alert('拉取记录失败') 
     }
@@ -897,10 +941,20 @@ const undoGlobalLog = async (log) => {
   align-items: flex-start;
   margin-bottom: 24px;
 }
-.calendar-header-left { display: flex; flex-direction: column; gap: 14px; }
+.calendar-header-left { display: flex; flex-direction: column; gap: 8px; }
 .calendar-header-left h2 { margin: 0; font-size: 22px; font-weight: 800; }
 
-.calendar-filters { display: flex; gap: 8px; flex-wrap: wrap; }
+/* Filter Dropdown Standardized Styles */
+.filter-dropdown-container { position: relative; display: inline-block; }
+.filter-trigger { display: inline-flex; align-items: center; gap: 8px; padding: 6px 14px; border-radius: 8px; font-size: 13px; font-weight: 700; color: var(--color-text-secondary); background: transparent; border: 1px solid var(--color-border); cursor: pointer; transition: all 0.2s; }
+.filter-trigger:hover, .filter-trigger:active { background: var(--color-surface-hover); color: var(--color-text); }
+.popup-menu.filter-menu { position: absolute; top: calc(100% + 8px); left: 0; min-width: 200px; max-height: 320px; overflow-y: auto; background: var(--color-surface-raised); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); border: 1px solid var(--color-border); border-radius: 12px; box-shadow: 0 10px 40px rgba(0,0,0,0.15); z-index: 100; display: flex; flex-direction: column; padding: 8px 0; }
+.filter-option { display: flex; align-items: center; gap: 10px; padding: 8px 16px; cursor: pointer; font-size: 14px; color: var(--color-text); font-weight: 600; transition: background 0.2s; user-select: none; }
+.filter-option:hover { background: rgba(0,0,0,0.03); }
+[data-theme="dark"] .filter-option:hover { background: rgba(255,255,255,0.05); }
+.filter-option input[type="checkbox"] { flex-shrink: 0; width: 16px; height: 16px; cursor: pointer; accent-color: var(--color-accent); }
+.filter-option.all-option { border-bottom: 1px solid var(--color-divider); padding-bottom: 12px; margin-bottom: 4px; color: var(--color-text-secondary); }
+.task-opt-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px; }
 
 .month-nav {
   display: flex;
@@ -1228,13 +1282,18 @@ const undoGlobalLog = async (log) => {
 [data-theme="dark"] .tag-yellow { background: rgba(245, 158, 11, 0.15); }
 [data-theme="dark"] .tag-green { background: rgba(16, 185, 129, 0.15); }
 .flex-wrap { flex-wrap: wrap; } .gap-2 { gap: 8px; } .gap-1 { gap: 4px; } .items-center { align-items: center; } .flex { display: flex; }
-.filter-pills { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 8px; scrollbar-width: none; }
-.filter-pills::-webkit-scrollbar { display: none; }
-.pill-btn { padding: 6px 14px; border-radius: 20px; font-size: 13px; font-weight: 600; border: 1px solid var(--color-border); background: var(--color-surface); color: var(--color-text-secondary); white-space: nowrap; cursor: pointer; transition: all 0.2s; }
-.pill-btn:hover { background: rgba(0,0,0,0.02); }
-.pill-btn.active { background: var(--color-text); color: var(--color-bg-base); border-color: var(--color-text); box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
-[data-theme="dark"] .pill-btn.active { background: var(--color-text); color: var(--color-bg-base); }
 
+/* Filter Dropdown Standardized Styles */
+.filter-dropdown-container { position: relative; display: inline-block; }
+.filter-trigger { display: inline-flex; align-items: center; gap: 8px; padding: 6px 14px; border-radius: 8px; font-size: 13px; font-weight: 700; color: var(--color-text-secondary); background: transparent; border: 1px solid var(--color-border); cursor: pointer; transition: all 0.2s; }
+.filter-trigger:hover, .filter-trigger:active { background: var(--color-surface-hover); color: var(--color-text); }
+.popup-menu.filter-menu { position: absolute; top: calc(100% + 8px); left: 0; min-width: 200px; max-height: 320px; overflow-y: auto; background: var(--color-surface-raised); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); border: 1px solid var(--color-border); border-radius: 12px; box-shadow: 0 10px 40px rgba(0,0,0,0.15); z-index: 100; display: flex; flex-direction: column; padding: 8px 0; }
+.filter-option { display: flex; align-items: center; gap: 10px; padding: 8px 16px; cursor: pointer; font-size: 14px; color: var(--color-text); font-weight: 600; transition: background 0.2s; user-select: none; }
+.filter-option:hover { background: rgba(0,0,0,0.03); }
+[data-theme="dark"] .filter-option:hover { background: rgba(255,255,255,0.05); }
+.filter-option input[type="checkbox"] { flex-shrink: 0; width: 16px; height: 16px; cursor: pointer; accent-color: var(--color-accent); }
+.filter-option.all-option { border-bottom: 1px solid var(--color-divider); padding-bottom: 12px; margin-bottom: 4px; color: var(--color-text-secondary); }
+.task-opt-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px; }
 .empty-state { text-align: center; color: var(--color-text-tertiary); padding: 60px 0; display: flex; flex-direction: column; align-items: center; }
 .empty-icon-wrap { font-size: 48px; filter: grayscale(1) opacity(0.3); margin-bottom: 16px; }
 .empty-text { font-size: 18px; font-weight: 800; color: var(--color-text-secondary); }
