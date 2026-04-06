@@ -62,7 +62,7 @@ def upgrade() -> None:
     op.execute(
         "INSERT INTO user_modules (user_id, module_key, granted_at) "
         "SELECT u.id, 'tick', CURRENT_TIMESTAMP FROM users u "
-        "WHERE u.is_superuser = 0 AND u.is_active = 1 "
+        "WHERE u.is_superuser = false AND u.is_active = true "
         "AND NOT EXISTS (SELECT 1 FROM user_modules um WHERE um.user_id = u.id AND um.module_key = 'tick')"
     )
 
