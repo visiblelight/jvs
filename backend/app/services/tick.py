@@ -143,7 +143,11 @@ def enrich_task_out(db: Session, task: TickTask) -> dict:
     total_ticks = db.query(func.count(TickLog.id)).filter(TickLog.task_id == task.id).scalar() or 0
     total_points = db.query(func.coalesce(func.sum(TickLog.points_earned), 0)).filter(TickLog.task_id == task.id).scalar()
     ticked = db.query(TickLog).filter(TickLog.task_id == task.id, TickLog.period_key == current_pk).first()
-    streak = compute_streak(db, task.id, task.frequency, current_pk, include_current=True)
+    if ticked:
+        streak = compute_streak(db, task.id, task.frequency, current_pk, include_current=True)
+    else:
+        prev_pk = _prev_period_key(task.frequency, current_pk)
+        streak = compute_streak(db, task.id, task.frequency, prev_pk, include_current=True)
 
     return {
         "id": task.id,
