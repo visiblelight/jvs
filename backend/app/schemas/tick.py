@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field
 
 class TickTaskCreate(BaseModel):
     title: str
+    short_name: str = ""
     description: Optional[str] = None
     frequency: str = Field(..., pattern="^(daily|weekly|monthly)$")
     frequency_config: dict = Field(default_factory=dict)
@@ -20,6 +21,7 @@ class TickTaskCreate(BaseModel):
 
 class TickTaskUpdate(BaseModel):
     title: Optional[str] = None
+    short_name: Optional[str] = None
     description: Optional[str] = None
     frequency: Optional[str] = Field(default=None, pattern="^(daily|weekly|monthly)$")
     frequency_config: Optional[dict] = None
@@ -34,6 +36,7 @@ class TickTaskUpdate(BaseModel):
 class TickTaskOut(BaseModel):
     id: int
     title: str
+    short_name: str = ""
     description: Optional[str]
     frequency: str
     frequency_config: dict

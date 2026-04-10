@@ -14,6 +14,7 @@ class TickTask(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     title: Mapped[str] = mapped_column(String(200), nullable=False)
+    short_name: Mapped[str] = mapped_column(String(10), nullable=False, default="")
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     frequency: Mapped[str] = mapped_column(String(10), nullable=False)  # daily / weekly / monthly
     frequency_config: Mapped[str] = mapped_column(Text, nullable=False, default="{}")  # JSON

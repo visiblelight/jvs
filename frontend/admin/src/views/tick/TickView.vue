@@ -131,12 +131,13 @@
                     <span class="date-num">{{ d.date }}</span>
                  </div>
                  <div class="day-ticks custom-scroll stamp-matrix">
-                    <div v-for="item in getDayTasks(d.dateStr)" :key="item.task.id" 
+                    <div v-for="item in getDayTasks(d.dateStr)" :key="item.task.id"
                          :class="['stamp-item', item.isDone ? 'done' : 'missed']"
+                         :style="stampStyle(item.task)"
                          @mouseenter="(e) => item.isDone && showTooltip(e, item)"
                          @mousemove="item.isDone ? moveTooltip($event) : null"
                          @mouseleave="item.isDone ? hideTooltip() : null">
-                       {{ item.task.title.charAt(0) }}
+                       {{ item.task.short_name || item.task.title.charAt(0) }}
                     </div>
                  </div>
                </div>
@@ -213,6 +214,11 @@
                      <div class="field">
                         <label>标题</label>
                         <input v-model="form.title" class="form-input" required placeholder="例如：每日跳绳"/>
+                     </div>
+
+                     <div class="field">
+                        <label>印章简称 (可选)</label>
+                        <input v-model="form.short_name" class="form-input" maxlength="4" placeholder="不填则取标题第一字，如「英语」"/>
                      </div>
 
                      <div class="field">
@@ -616,6 +622,19 @@ const getDayTasks = (dateStr) => {
   return results;
 }
 
+const stampStyle = (task) => {
+  const text = task.short_name || task.title.charAt(0)
+  const len = text.length
+  if (len <= 1) return {}
+  return {
+    width: 'auto',
+    minWidth: '28px',
+    borderRadius: '8px',
+    padding: '0 5px',
+    fontSize: len <= 2 ? '11px' : '9px',
+  }
+}
+
 const getTaskTitle = (id) => {
    const t = allTasks.value.find(x => x.id === id)
    return t ? t.title : '任务'
@@ -668,6 +687,7 @@ const form = reactive({
   title: '',
   description: '',
   frequency: 'daily',
+  short_name: '',
   start_date: new Date().toISOString().slice(0, 10),
   end_date: '',
   enable_quality: false,
@@ -679,6 +699,7 @@ const form = reactive({
 const openCreateTaskForm = () => {
    editingTask.value = null
    form.title = ''
+   form.short_name = ''
    form.description = ''
    form.frequency = 'daily'
    const tzOffset = new Date().getTimezoneOffset() * 60000;
@@ -695,6 +716,7 @@ const openCreateTaskForm = () => {
 const openEditTaskForm = (t) => {
    editingTask.value = t
    form.title = t.title
+   form.short_name = t.short_name || ''
    form.description = t.description || ''
    form.frequency = t.frequency
    form.start_date = t.start_date
@@ -712,6 +734,7 @@ const submitTaskForm = async () => {
    try {
      const payload = {
        title: form.title,
+       short_name: form.short_name,
        frequency: form.frequency,
        frequency_config: {},
        start_date: form.start_date,
@@ -1050,9 +1073,6 @@ const undoGlobalLog = async (log) => {
 }
 
 .day-ticks {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
   flex: 1;
   overflow-y: auto;
   padding-right: 2px;
@@ -1063,8 +1083,8 @@ const undoGlobalLog = async (log) => {
 
 /* Minimalist Stamp Matrix */
 .stamp-matrix {
-   display: grid;
-   grid-template-columns: repeat(auto-fill, minmax(28px, 1fr));
+   display: flex;
+   flex-wrap: wrap;
    gap: 6px;
    align-content: start;
    padding-bottom: 4px;

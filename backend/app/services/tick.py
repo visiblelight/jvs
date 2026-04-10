@@ -148,6 +148,7 @@ def enrich_task_out(db: Session, task: TickTask) -> dict:
     return {
         "id": task.id,
         "title": task.title,
+        "short_name": task.short_name,
         "description": task.description,
         "frequency": task.frequency,
         "frequency_config": _parse_json_field(task.frequency_config),
