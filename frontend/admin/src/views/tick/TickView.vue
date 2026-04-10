@@ -18,6 +18,38 @@
       </div>
     </header>
 
+    <!-- 数据概览条 -->
+    <div class="stats-strip" v-if="!loading && allTasks.length > 0">
+      <div class="stat-chip" v-if="totalPoints > 0">
+        <span class="stat-chip-icon">⭐</span>
+        <div class="stat-chip-body">
+          <span class="stat-chip-value">{{ totalPoints.toLocaleString() }}</span>
+          <span class="stat-chip-label">累计积分</span>
+        </div>
+      </div>
+      <div class="stat-chip">
+        <span class="stat-chip-icon">✅</span>
+        <div class="stat-chip-body">
+          <span class="stat-chip-value">{{ totalTicks.toLocaleString() }}</span>
+          <span class="stat-chip-label">总打卡次数</span>
+        </div>
+      </div>
+      <div class="stat-chip" v-if="maxStreak.value > 0">
+        <span class="stat-chip-icon">🔥</span>
+        <div class="stat-chip-body">
+          <span class="stat-chip-value">{{ maxStreak.value }} <small>{{ maxStreak.unit }}</small></span>
+          <span class="stat-chip-label">当前最长连打</span>
+        </div>
+      </div>
+      <div class="stat-chip">
+        <span class="stat-chip-icon">📋</span>
+        <div class="stat-chip-body">
+          <span class="stat-chip-value">{{ tasks.length }}</span>
+          <span class="stat-chip-label">活跃任务</span>
+        </div>
+      </div>
+    </div>
+
     <div class="dashboard-content" v-if="!loading">
       <!-- 今日本周期待办 -->
       <div class="pending-sections" v-if="pendingTasks.length > 0">
@@ -523,6 +555,15 @@ onUnmounted(() => {
    document.removeEventListener('click', handleOutsideClick)
 })
 
+// --- Global Stats ---
+const totalPoints = computed(() => allTasks.value.reduce((s, t) => s + (t.total_points || 0), 0))
+const totalTicks  = computed(() => allTasks.value.reduce((s, t) => s + (t.total_ticks  || 0), 0))
+const maxStreak   = computed(() => {
+  if (!allTasks.value.length) return { value: 0, unit: '天' }
+  const best = allTasks.value.reduce((a, b) => (b.current_streak || 0) > (a.current_streak || 0) ? b : a)
+  return { value: best.current_streak || 0, unit: freqUnit(best.frequency) }
+})
+
 // --- Pending Tasks ---
 const pendingTasks = computed(() => {
    return tasks.value.filter(t => !t.ticked_this_period)
@@ -1000,6 +1041,55 @@ const getISOWeek = (date) => {
   color: var(--color-text-secondary);
   font-size: 15px;
   margin: 0;
+}
+
+.stats-strip {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 32px;
+  flex-wrap: wrap;
+}
+
+.stat-chip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  padding: 12px 20px;
+  box-shadow: var(--shadow-sm);
+  min-width: 130px;
+}
+
+.stat-chip-icon {
+  font-size: 22px;
+  line-height: 1;
+}
+
+.stat-chip-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.stat-chip-value {
+  font-size: 22px;
+  font-weight: 900;
+  color: var(--color-text);
+  line-height: 1;
+}
+
+.stat-chip-value small {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-text-secondary);
+}
+
+.stat-chip-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-tertiary);
 }
 
 .btn-manage {
