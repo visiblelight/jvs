@@ -54,6 +54,8 @@
 
 <script setup>
 import { computed } from 'vue'
+import { useDialog } from '@/composables/useDialog'
+const { confirm } = useDialog()
 import { marked } from 'marked'
 import DOMPurify from 'dompurify'
 import { useNewsStore } from '@/stores/news'
@@ -73,7 +75,7 @@ function formatDate(d) {
 }
 
 async function handleDelete() {
-  if (!confirm('确定删除这篇文章？')) return
+  if (!await confirm('确定要永久删除这篇文章吗？此操作不可逆。', { title: '删除文章', danger: true })) return
   await deleteArticle(store.selectedArticle.id)
   store.selectedArticle = null
   await store.fetchArticles()

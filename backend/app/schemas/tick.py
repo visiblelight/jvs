@@ -69,6 +69,12 @@ class TickLogCreate(BaseModel):
     note: Optional[str] = None
 
 
+class MakeupTickCreate(BaseModel):
+    period_key: str
+    note: Optional[str] = None
+    quality: Optional[int] = Field(default=None, ge=1, le=5)
+
+
 class TickLogOut(BaseModel):
     id: int
     task_id: int
@@ -77,6 +83,7 @@ class TickLogOut(BaseModel):
     quality: Optional[int]
     note: Optional[str]
     points_earned: int
+    is_makeup: bool = False
     created_at: datetime
 
     model_config = {"from_attributes": True}

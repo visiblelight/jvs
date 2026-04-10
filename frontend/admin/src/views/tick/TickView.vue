@@ -132,11 +132,12 @@
                  </div>
                  <div class="day-ticks custom-scroll stamp-matrix">
                     <div v-for="item in getDayTasks(d.dateStr)" :key="item.task.id"
-                         :class="['stamp-item', item.isDone ? 'done' : 'missed']"
+                         :class="['stamp-item', item.isDone ? (item.log?.is_makeup ? 'makeup' : 'done') : 'missed']"
                          :style="stampStyle(item.task)"
                          @mouseenter="(e) => item.isDone && showTooltip(e, item)"
                          @mousemove="item.isDone ? moveTooltip($event) : null"
-                         @mouseleave="item.isDone ? hideTooltip() : null">
+                         @mouseleave="item.isDone ? hideTooltip() : null"
+                         @click.stop="!item.isDone && openMakeupPopover($event, item, d.dateStr)">
                        {{ item.task.short_name || item.task.title.charAt(0) }}
                     </div>
                  </div>
@@ -333,6 +334,7 @@
                         </div>
                         <div class="log-right">
                            <div class="log-meta">
+                              <span v-if="log.is_makeup" class="tag tag-makeup">补打</span>
                               <span v-if="log.quality" class="tag tag-yellow">⭐ {{log.quality}}</span>
                               <span v-if="log.points_earned" class="tag tag-green">+{{log.points_earned}}分</span>
                            </div>
@@ -363,6 +365,45 @@
       </div>
     </Teleport>
 
+    <!-- 补打卡 Popover -->
+    <Teleport to="body">
+       <div v-if="makeupPopover.visible" class="makeup-popover" :style="{ top: makeupPopover.y + 'px', left: makeupPopover.x + 'px' }" @click.stop>
+          <div class="makeup-popover-title">补打卡 · {{ makeupPopover.task?.title }}</div>
+          <div class="makeup-popover-date">{{ makeupPopover.dateStr }}</div>
+          <div class="makeup-popover-hint">补打卡不计积分，仅记录足迹</div>
+          <div v-if="makeupPopover.task?.enable_quality" class="makeup-quality">
+             <span class="makeup-quality-label">完成质量</span>
+             <div class="makeup-stars">
+                <button v-for="s in 5" :key="s" type="button"
+                        :class="['makeup-star', { active: makeupPopover.quality >= s }]"
+                        @click="makeupPopover.quality = makeupPopover.quality === s ? 0 : s">★</button>
+             </div>
+          </div>
+          <textarea v-model="makeupPopover.note" class="makeup-note-input" rows="2" placeholder="备注（可选）"></textarea>
+          <div class="makeup-popover-actions">
+             <button class="makeup-btn-cancel" @click="closeMakeupPopover">取消</button>
+             <button class="makeup-btn-confirm" @click="submitMakeup" :disabled="makeupPopover.submitting">
+                {{ makeupPopover.submitting ? '补打中...' : '确认补打' }}
+             </button>
+          </div>
+       </div>
+       <div v-if="makeupPopover.visible" class="makeup-popover-mask" @click="closeMakeupPopover"></div>
+    </Teleport>
+
+    <!-- 庆祝动画 -->
+    <Teleport to="body">
+      <div v-if="celebration.visible" class="celebration-overlay" aria-hidden="true">
+        <div class="celebration-badge">
+          <div class="celebration-check">✓</div>
+          <div class="celebration-label">打卡成功！</div>
+          <div v-if="celebration.streak > 1" class="celebration-streak">
+            🔥 连续第 <strong>{{ celebration.streak }}</strong> {{ freqUnit(celebration.frequency) }}
+          </div>
+        </div>
+        <div v-for="p in celebration.particles" :key="p.id" class="confetti-piece" :style="p.style"></div>
+      </div>
+    </Teleport>
+
     <!-- Delete Confirm Modal -->
     <Teleport to="body">
        <div v-if="deleteConfirmItem" class="modal-overlay" @click.self="deleteConfirmItem = null">
@@ -384,8 +425,11 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, reactive } from 'vue'
+import { ref, computed, onMounted, onUnmounted, reactive, nextTick } from 'vue'
 import * as api from '@/api/tick'
+import { useDialog } from '@/composables/useDialog'
+
+const { toast, confirm } = useDialog()
 
 const loading = ref(true)
 const tasks = ref([])     // Active tasks
@@ -572,11 +616,33 @@ const calendarDays = computed(() => {
 const logsByDate = computed(() => {
   const map = {}
   globalLogs.value.forEach(log => {
-      const d = new Date(log.ticked_at)
-      const tzOffset = d.getTimezoneOffset() * 60000;
-      const localIso = (new Date(d.getTime() - tzOffset)).toISOString().slice(0, 10);
-      if (!map[localIso]) map[localIso] = []
-      map[localIso].push(log)
+      let dateKey
+      if (log.is_makeup) {
+          if (/^\d{4}-\d{2}-\d{2}$/.test(log.period_key)) {
+              // daily makeup: period_key 即日历日期
+              dateKey = log.period_key
+          } else if (/^\d{4}-W\d{2}$/.test(log.period_key)) {
+              // weekly makeup: 显示在该周最后一天（周日）
+              const [year, week] = log.period_key.split('-W')
+              const jan4 = new Date(Date.UTC(+year, 0, 4))
+              const mon = new Date(jan4.getTime() - ((jan4.getUTCDay() || 7) - 1) * 86400000)
+              const sunday = new Date(mon.getTime() + (+week - 1) * 7 * 86400000 + 6 * 86400000)
+              dateKey = sunday.toISOString().slice(0, 10)
+          } else if (/^\d{4}-\d{2}$/.test(log.period_key)) {
+              // monthly makeup: 显示在该月最后一天
+              const [year, month] = log.period_key.split('-')
+              const lastDay = new Date(+year, +month, 0)
+              const tzOffset = lastDay.getTimezoneOffset() * 60000
+              dateKey = (new Date(lastDay.getTime() - tzOffset)).toISOString().slice(0, 10)
+          }
+      }
+      if (!dateKey) {
+          const d = new Date(log.ticked_at)
+          const tzOffset = d.getTimezoneOffset() * 60000;
+          dateKey = (new Date(d.getTime() - tzOffset)).toISOString().slice(0, 10);
+      }
+      if (!map[dateKey]) map[dateKey] = []
+      map[dateKey].push(log)
   })
   return map
 })
@@ -607,13 +673,20 @@ const getDayTasks = (dateStr) => {
           } else if (t.frequency === 'weekly') {
               if (isLastDayOfWeek(dateStr)) {
                   const dTime = new Date(dateStr).getTime();
-                  const tickedInWeek = globalLogs.value.some(l => l.task_id === t.id && (new Date(l.ticked_at.split('T')[0]).getTime() >= dTime - 6 * 86400000) && (new Date(l.ticked_at.split('T')[0]).getTime() <= dTime));
+                  const isoWeek = getISOWeek(new Date(dateStr))
+                  const weekPk = `${isoWeek.year}-W${String(isoWeek.week).padStart(2, '0')}`
+                  const tickedInWeek = globalLogs.value.some(l => l.task_id === t.id && (
+                      (new Date(l.ticked_at.split('T')[0]).getTime() >= dTime - 6 * 86400000 && new Date(l.ticked_at.split('T')[0]).getTime() <= dTime) ||
+                      (l.is_makeup && l.period_key === weekPk)
+                  ));
                   if (!tickedInWeek) results.push({ task: t, isDone: false, log: null });
               }
           } else if (t.frequency === 'monthly') {
               if (isLastDayOfMonth(dateStr)) {
                   const prefix = dateStr.slice(0, 7);
-                  const tickedInMonth = globalLogs.value.some(l => l.task_id === t.id && l.ticked_at.startsWith(prefix));
+                  const tickedInMonth = globalLogs.value.some(l => l.task_id === t.id && (
+                      l.ticked_at.startsWith(prefix) || (l.is_makeup && l.period_key === prefix)
+                  ));
                   if (!tickedInMonth) results.push({ task: t, isDone: false, log: null });
               }
           }
@@ -662,17 +735,48 @@ const submitTick = async () => {
    if(!tickDialogTask.value) return
    ticking.value = true
    try {
+     const task = tickDialogTask.value
      const body = {}
-     if (tickDialogTask.value.enable_quality && tickForm.quality > 0) body.quality = tickForm.quality
+     if (task.enable_quality && tickForm.quality > 0) body.quality = tickForm.quality
      if (tickForm.note.trim()) body.note = tickForm.note.trim()
-     await api.doTick(tickDialogTask.value.id, body)
-     await loadData() // Refresh
+     const { data } = await api.doTick(task.id, body)
      tickDialogTask.value = null
+     await loadData()
+     triggerCelebration(data.current_streak, task.frequency)
    } catch(e) {
-     alert(e?.response?.data?.detail || '打卡失败')
+     toast(e?.response?.data?.detail || '打卡失败')
    } finally {
      ticking.value = false
    }
+}
+
+// --- 庆祝动画 ---
+const celebration = reactive({ visible: false, streak: 0, frequency: '', particles: [] })
+
+const triggerCelebration = (streak, frequency) => {
+  const colors = ['#f59e0b','#10b981','#6366f1','#ef4444','#3b82f6','#ec4899','#f97316','#8b5cf6','#06b6d4']
+  celebration.particles = Array.from({ length: 56 }, (_, i) => {
+    const angle = (i / 56) * 360 + (Math.random() - 0.5) * 15
+    const dist = 100 + Math.random() * 220
+    return {
+      id: i,
+      style: {
+        '--tx': (Math.cos(angle * Math.PI / 180) * dist).toFixed(1) + 'px',
+        '--ty': (Math.sin(angle * Math.PI / 180) * dist).toFixed(1) + 'px',
+        '--rot': (Math.random() * 900 - 450).toFixed(0) + 'deg',
+        background: colors[i % colors.length],
+        width:  (Math.random() * 10 + 6).toFixed(1) + 'px',
+        height: (Math.random() * 10 + 6).toFixed(1) + 'px',
+        borderRadius: Math.random() > 0.45 ? '50%' : '3px',
+        animationDelay: (Math.random() * 0.25).toFixed(2) + 's',
+        animationDuration: (Math.random() * 0.7 + 0.9).toFixed(2) + 's',
+      }
+    }
+  })
+  celebration.streak = streak
+  celebration.frequency = frequency
+  celebration.visible = true
+  setTimeout(() => { celebration.visible = false }, 2600)
 }
 
 // --- Management Logic ---
@@ -752,7 +856,7 @@ const submitTaskForm = async () => {
      await loadData()
      showForm.value = false
    } catch(e) {
-     alert(e?.response?.data?.detail || '保存失败')
+     toast(e?.response?.data?.detail || '保存失败')
    } finally {
      formSubmitting.value = false
    }
@@ -766,7 +870,7 @@ const executeDelete = async () => {
       deleteConfirmItem.value = null
       await loadData()
    } catch(e) {
-      alert('删除失败')
+      toast('删除失败')
    }
 }
 
@@ -790,22 +894,82 @@ const openGlobalLogsModal = async () => {
         if (drawerFilterIds.value.length === 0) {
             drawerFilterIds.value = allTasks.value.map(t => t.id)
         }
-    } catch(e) { 
-        alert('拉取记录失败') 
+    } catch(e) {
+        toast('拉取记录失败')
     }
 }
 
 const undoGlobalLog = async (log) => {
-    if(!confirm(`确认撤销这条对 "${getTaskTitle(log.task_id)}" 的打卡记录吗？`)) return;
+    const ok = await confirm(`确认撤销对「${getTaskTitle(log.task_id)}」的这条打卡记录吗？`, { title: '撤销打卡' })
+    if (!ok) return
     try {
-        await api.deleteLog(log.id);
+        await api.deleteLog(log.id)
         const { data } = await api.getAllLogs()
-        globalListLogs.value = data.items || [];
+        globalListLogs.value = data.items || []
         globalListLogs.value.sort((a,b) => new Date(b.ticked_at) - new Date(a.ticked_at))
-        await loadData();
+        await loadData()
     } catch(e) {
-        alert(e?.response?.data?.detail || '撤销失败')
+        toast(e?.response?.data?.detail || '撤销失败')
     }
+}
+
+// --- 补打卡 ---
+const makeupPopover = reactive({ visible: false, x: 0, y: 0, task: null, dateStr: '', periodKey: '', note: '', quality: 0, submitting: false })
+
+const openMakeupPopover = (e, item, dateStr) => {
+    // 计算 period_key
+    const task = item.task
+    let pk = dateStr
+    if (task.frequency === 'weekly') {
+        const d = new Date(dateStr)
+        const iso = getISOWeek(d)
+        pk = `${iso.year}-W${String(iso.week).padStart(2, '0')}`
+    } else if (task.frequency === 'monthly') {
+        pk = dateStr.slice(0, 7)
+    }
+    makeupPopover.task = task
+    makeupPopover.dateStr = dateStr
+    makeupPopover.periodKey = pk
+    makeupPopover.note = ''
+    makeupPopover.quality = 0
+    makeupPopover.submitting = false
+    makeupPopover.visible = true
+    nextTick(() => {
+        const vw = window.innerWidth, vh = window.innerHeight
+        let x = e.clientX + 12, y = e.clientY + 12
+        if (x + 240 > vw) x = e.clientX - 252
+        if (y + 160 > vh) y = e.clientY - 170
+        makeupPopover.x = x
+        makeupPopover.y = y
+    })
+}
+
+const closeMakeupPopover = () => { makeupPopover.visible = false }
+
+const submitMakeup = async () => {
+    if (!makeupPopover.task) return
+    makeupPopover.submitting = true
+    try {
+        await api.makeupTick(makeupPopover.task.id, {
+            period_key: makeupPopover.periodKey,
+            note: makeupPopover.note.trim() || undefined,
+            quality: makeupPopover.task.enable_quality && makeupPopover.quality > 0 ? makeupPopover.quality : undefined,
+        })
+        makeupPopover.visible = false
+        await loadData()
+    } catch(e) {
+        toast(e?.response?.data?.detail || '补打卡失败')
+    } finally {
+        makeupPopover.submitting = false
+    }
+}
+
+const getISOWeek = (date) => {
+    const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()))
+    const dayNum = d.getUTCDay() || 7
+    d.setUTCDate(d.getUTCDate() + 4 - dayNum)
+    const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1))
+    return { year: d.getUTCFullYear(), week: Math.ceil((((d - yearStart) / 86400000) + 1) / 7) }
 }
 
 </script>
@@ -1335,4 +1499,120 @@ const undoGlobalLog = async (log) => {
 }
 .custom-tooltip h4 { margin: 0 0 8px 0; font-size: 15px; font-weight: 800; border-bottom: 1px solid var(--color-divider); padding-bottom: 6px; color: var(--color-text);}
 .custom-tooltip p { margin: 4px 0; color: var(--color-text-secondary); line-height: 1.4; }
+
+/* 庆祝动画 */
+.celebration-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.celebration-badge {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  animation: badgePop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) both, badgeFade 0.4s ease 2s forwards;
+}
+
+.celebration-check {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #10b981, #059669);
+  color: #fff;
+  font-size: 40px;
+  font-weight: 900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 8px 32px rgba(16, 185, 129, 0.45);
+}
+
+.celebration-label {
+  font-size: 22px;
+  font-weight: 900;
+  color: var(--color-text, #111);
+  text-shadow: 0 2px 12px rgba(0,0,0,0.08);
+  letter-spacing: 0.5px;
+}
+
+.celebration-streak {
+  font-size: 15px;
+  font-weight: 700;
+  color: #f97316;
+  background: rgba(249, 115, 22, 0.1);
+  padding: 4px 14px;
+  border-radius: 99px;
+}
+.celebration-streak strong { font-size: 18px; }
+
+.confetti-piece {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  animation: confettiBurst var(--dur, 1s) var(--delay, 0s) cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
+}
+
+@keyframes badgePop {
+  0%   { opacity: 0; transform: scale(0.4); }
+  100% { opacity: 1; transform: scale(1); }
+}
+@keyframes badgeFade {
+  to { opacity: 0; transform: scale(0.9) translateY(-10px); }
+}
+@keyframes confettiBurst {
+  0%   { transform: translate(-50%, -50%) rotate(0deg) scale(1); opacity: 1; }
+  80%  { opacity: 1; }
+  100% { transform: translate(calc(-50% + var(--tx)), calc(-50% + var(--ty))) rotate(var(--rot)) scale(0.2); opacity: 0; }
+}
+
+/* 补打卡印章样式 */
+.stamp-item.makeup {
+   background: transparent;
+   border: 2px dashed #a3a3a3;
+   color: #a3a3a3;
+   opacity: 0.55;
+}
+[data-theme="dark"] .stamp-item.makeup { border-color: #525252; color: #737373; }
+
+/* 补打卡 Badge */
+.tag-makeup { background: #f3f4f6; color: #6b7280; font-weight: 700; border-radius: 6px; padding: 4px 8px; font-size: 11px; }
+[data-theme="dark"] .tag-makeup { background: rgba(255,255,255,0.06); color: #9ca3af; }
+
+/* 补打卡 Popover */
+.makeup-popover-mask { position: fixed; inset: 0; z-index: 1998; }
+.makeup-popover {
+   position: fixed;
+   z-index: 1999;
+   width: 240px;
+   background: var(--color-surface-raised);
+   backdrop-filter: blur(20px);
+   -webkit-backdrop-filter: blur(20px);
+   border: 1px solid var(--color-border);
+   border-radius: 14px;
+   box-shadow: 0 12px 40px rgba(0,0,0,0.15);
+   padding: 16px;
+}
+.makeup-popover-title { font-size: 14px; font-weight: 800; color: var(--color-text); margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.makeup-popover-date { font-size: 12px; color: var(--color-text-tertiary); margin-bottom: 6px; }
+.makeup-popover-hint { font-size: 11px; color: var(--color-text-tertiary); margin-bottom: 10px; padding: 4px 8px; background: rgba(0,0,0,0.03); border-radius: 6px; }
+[data-theme="dark"] .makeup-popover-hint { background: rgba(255,255,255,0.04); }
+.makeup-quality { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.makeup-quality-label { font-size: 12px; color: var(--color-text-secondary); font-weight: 600; flex-shrink: 0; }
+.makeup-stars { display: flex; gap: 2px; }
+.makeup-star { font-size: 20px; background: none; border: none; cursor: pointer; color: var(--color-text-tertiary); opacity: 0.35; padding: 0; transition: all 0.15s; line-height: 1; }
+.makeup-star:hover { opacity: 0.7; color: #fbbf24; transform: scale(1.2); }
+.makeup-star.active { color: #f59e0b; opacity: 1; }
+.makeup-note-input { width: 100%; padding: 8px 10px; font-size: 13px; border: 1px solid var(--color-border); border-radius: 8px; background: var(--color-bg-base); color: var(--color-text); font-family: inherit; outline: none; resize: none; box-sizing: border-box; margin-bottom: 12px; }
+.makeup-note-input:focus { border-color: var(--color-accent); }
+.makeup-popover-actions { display: flex; gap: 8px; justify-content: flex-end; }
+.makeup-btn-cancel { padding: 6px 14px; background: transparent; border: 1px solid var(--color-border); border-radius: 8px; font-size: 13px; font-weight: 600; color: var(--color-text-secondary); cursor: pointer; }
+.makeup-btn-confirm { padding: 6px 14px; background: var(--color-accent); border: none; border-radius: 8px; font-size: 13px; font-weight: 700; color: #fff; cursor: pointer; }
+.makeup-btn-confirm:disabled { opacity: 0.6; cursor: not-allowed; }
 </style>

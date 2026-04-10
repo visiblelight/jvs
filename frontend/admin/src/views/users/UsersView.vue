@@ -129,6 +129,8 @@
 
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
+import { useDialog } from '@/composables/useDialog'
+const { toast } = useDialog()
 import * as api from '@/api/users'
 import { useAuthStore } from '@/stores/auth'
 import UserAvatar from '@/components/UserAvatar.vue'
@@ -250,7 +252,7 @@ async function toggleActive(u) {
     await api.updateUser(u.id, { is_active: !u.is_active })
     await fetchUsers()
   } catch (e) {
-    alert(e?.response?.data?.detail || '操作失败')
+    toast(e?.response?.data?.detail || '操作失败')
   }
 }
 
@@ -261,7 +263,7 @@ async function openModulesModal(u) {
     modulesDraft.value = [...(data.modules || [])]
     modulesModalUser.value = data
   } catch (e) {
-    alert(e?.response?.data?.detail || '获取用户详情失败')
+    toast(e?.response?.data?.detail || '获取用户详情失败')
   }
 }
 

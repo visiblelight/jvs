@@ -214,6 +214,41 @@ def do_tick(
     return log, new_streak, total_points
 
 
+def makeup_tick(
+    db: Session,
+    task: TickTask,
+    user_id: int,
+    period_key: str,
+    note: Optional[str] = None,
+    quality: Optional[int] = None,
+) -> TickLog:
+    """补打卡：写入历史周期，得 0 分，标记 is_makeup=True"""
+    today = datetime.now(timezone.utc).date()
+    current_pk = compute_period_key(task.frequency, today)
+
+    if period_key >= current_pk:
+        raise ValueError("补打卡只能针对过去的周期")
+
+    existing = db.query(TickLog).filter(TickLog.task_id == task.id, TickLog.period_key == period_key).first()
+    if existing:
+        raise ValueError("该周期已有打卡记录")
+
+    log = TickLog(
+        user_id=user_id,
+        task_id=task.id,
+        ticked_at=datetime.now(timezone.utc),
+        period_key=period_key,
+        note=note,
+        quality=quality,
+        points_earned=0,
+        is_makeup=True,
+    )
+    db.add(log)
+    db.commit()
+    db.refresh(log)
+    return log
+
+
 def undo_tick(db: Session, task: TickTask) -> None:
     """撤销当前周期的打卡"""
     today = datetime.now(timezone.utc).date()

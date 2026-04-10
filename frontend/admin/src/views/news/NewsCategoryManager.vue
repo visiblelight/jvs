@@ -36,6 +36,8 @@
 
 <script setup>
 import { ref } from 'vue'
+import { useDialog } from '@/composables/useDialog'
+const { toast, confirm } = useDialog()
 import { useNewsStore } from '@/stores/news'
 import { createCategory, updateCategory, deleteCategory } from '@/api/news'
 
@@ -68,12 +70,12 @@ async function saveEdit(id) {
 }
 
 async function handleDelete(id) {
-  if (!confirm('确定删除？')) return
+  if (!await confirm('确定要删除这个分类吗？', { title: '删除分类', danger: true })) return
   try {
     await deleteCategory(id)
     await store.fetchCategories()
   } catch (e) {
-    alert(e.response?.data?.detail || '删除失败')
+    toast(e.response?.data?.detail || '删除失败')
   }
 }
 </script>

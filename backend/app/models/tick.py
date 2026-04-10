@@ -50,6 +50,7 @@ class TickLog(Base):
     quality: Mapped[int | None] = mapped_column(Integer, nullable=True)
     note: Mapped[str | None] = mapped_column(Text, nullable=True)
     points_earned: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    is_makeup: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime, default=lambda: datetime.now(timezone.utc)
     )

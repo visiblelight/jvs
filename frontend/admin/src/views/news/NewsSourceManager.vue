@@ -35,6 +35,8 @@
 
 <script setup>
 import { ref } from 'vue'
+import { useDialog } from '@/composables/useDialog'
+const { toast, confirm } = useDialog()
 import { useNewsStore } from '@/stores/news'
 import { createSource, updateSource, deleteSource } from '@/api/news'
 
@@ -65,12 +67,12 @@ async function saveEdit(id) {
 }
 
 async function handleDelete(id) {
-  if (!confirm('确定删除？')) return
+  if (!await confirm('确定要删除这个来源吗？', { title: '删除来源', danger: true })) return
   try {
     await deleteSource(id)
     await store.fetchSources()
   } catch (e) {
-    alert(e.response?.data?.detail || '删除失败')
+    toast(e.response?.data?.detail || '删除失败')
   }
 }
 </script>

@@ -39,6 +39,8 @@
 
 <script setup>
 import { ref, watch } from 'vue'
+import { useDialog } from '@/composables/useDialog'
+const { confirm } = useDialog()
 import { getItems, restoreItem, hardDeleteItem } from '@/api/todo'
 import { useTodoStore } from '@/stores/todo'
 
@@ -77,7 +79,7 @@ async function restoreContent(id) {
 }
 
 async function hardDeleteContent(id) {
-  if (!confirm('确认永久删除该事项吗？此操作不可逆！')) return
+  if (!await confirm('确认永久删除该事项吗？此操作不可逆！', { title: '永久删除', danger: true })) return
   try {
     await hardDeleteItem(id)
     await fetchDeleted()

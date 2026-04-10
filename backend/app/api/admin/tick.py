@@ -7,6 +7,7 @@ from app.core.deps import get_current_user, get_db, require_module
 from app.models.tick import TickTask
 from app.models.user import User
 from app.schemas.tick import (
+    MakeupTickCreate,
     TickLogCreate,
     TickLogListOut,
     TickLogOut,
@@ -114,6 +115,23 @@ def do_tick(
         current_streak=streak,
         total_points=total_points,
     )
+
+
+@router.post("/tasks/{task_id}/makeup", response_model=TickLogOut, status_code=status.HTTP_201_CREATED)
+def makeup_tick(
+    task_id: int,
+    body: MakeupTickCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    task = _get_own_task(db, task_id, current_user.id)
+    if task.is_archived:
+        raise HTTPException(status_code=400, detail="任务已归档，无法补打卡")
+    try:
+        log = tick_svc.makeup_tick(db, task, current_user.id, body.period_key, note=body.note, quality=body.quality)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return TickLogOut.model_validate(log)
 
 
 @router.delete("/tasks/{task_id}/tick", status_code=status.HTTP_204_NO_CONTENT)

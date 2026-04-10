@@ -1,9 +1,10 @@
 <template>
   <router-view />
+  <GlobalDialog />
 </template>
 
 <script setup>
 import { useThemeStore } from '@/stores/theme'
-// Initialize theme on app mount
+import GlobalDialog from '@/components/GlobalDialog.vue'
 useThemeStore()
 </script>

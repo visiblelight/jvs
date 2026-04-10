@@ -128,6 +128,8 @@
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
+import { useDialog } from '@/composables/useDialog'
+const { confirm } = useDialog()
 import * as api from '@/api/access-key'
 
 const keys = ref([])
@@ -190,7 +192,7 @@ async function toggleActive(ak) {
 }
 
 async function handleDelete(ak) {
-  if (!confirm(`确定删除 "${ak.name}"？`)) return
+  if (!await confirm(`确定要删除 Access Key「${ak.name}」吗？`, { title: '删除 Key', danger: true })) return
   await api.deleteAccessKey(ak.id)
   await fetchKeys()
 }
