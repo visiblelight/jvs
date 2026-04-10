@@ -34,10 +34,10 @@
           <span class="stat-chip-label">总打卡次数</span>
         </div>
       </div>
-      <div class="stat-chip" v-if="maxStreak.value > 0">
+      <div class="stat-chip" v-if="maxStreak > 0">
         <span class="stat-chip-icon">🔥</span>
         <div class="stat-chip-body">
-          <span class="stat-chip-value">{{ maxStreak.value }} <small>{{ maxStreak.unit }}</small></span>
+          <span class="stat-chip-value">{{ maxStreak }} <small>天</small></span>
           <span class="stat-chip-label">当前最长连打</span>
         </div>
       </div>
@@ -559,10 +559,12 @@ onUnmounted(() => {
 const totalPoints = computed(() => allTasks.value.reduce((s, t) => s + (t.total_points || 0), 0))
 const totalTicks  = computed(() => allTasks.value.reduce((s, t) => s + (t.total_ticks  || 0), 0))
 const maxStreak   = computed(() => {
-  if (!allTasks.value.length) return { value: 0, unit: '天' }
-  const best = allTasks.value.reduce((a, b) => (b.current_streak || 0) > (a.current_streak || 0) ? b : a)
-  const unitMap = { daily: '天', weekly: '周', monthly: '个月' }
-  return { value: best.current_streak || 0, unit: unitMap[best.frequency] || '次' }
+  if (!allTasks.value.length) return 0
+  const toDays = { daily: 1, weekly: 7, monthly: 30 }
+  return allTasks.value.reduce((max, t) => {
+    const days = (t.current_streak || 0) * (toDays[t.frequency] || 1)
+    return days > max ? days : max
+  }, 0)
 })
 
 // --- Pending Tasks ---
