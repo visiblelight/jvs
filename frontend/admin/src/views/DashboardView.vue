@@ -44,48 +44,18 @@
 
       <!-- Module cards -->
       <div class="module-grid">
-        <router-link to="/todo" class="module-card">
+        <router-link
+          v-for="m in visibleModules"
+          :key="m.path"
+          :to="m.path"
+          class="module-card"
+        >
           <div class="module-icon-wrap">
-            <svg viewBox="0 0 24 24" fill="none" width="22" height="22">
-              <rect x="3" y="5" width="18" height="16" rx="2" stroke="currentColor" stroke-width="1.5"/>
-              <path d="M7 9l2 2 4-4M7 15l2 2 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
+            <svg viewBox="0 0 24 24" fill="none" width="22" height="22" v-html="m.svg"></svg>
           </div>
           <div class="module-text">
-            <h3>ToDo</h3>
-            <p>任务管理</p>
-          </div>
-          <div class="module-arrow">
-            <svg viewBox="0 0 16 16" fill="currentColor" width="14" height="14"><path d="M6.22 3.22a.75.75 0 011.06 0l4.25 4.25a.75.75 0 010 1.06l-4.25 4.25a.75.75 0 01-1.06-1.06L9.94 8 6.22 4.28a.75.75 0 010-1.06z"/></svg>
-          </div>
-        </router-link>
-
-        <router-link to="/news" class="module-card">
-          <div class="module-icon-wrap">
-            <svg viewBox="0 0 24 24" fill="none" width="22" height="22">
-              <rect x="3" y="4" width="18" height="16" rx="2" stroke="currentColor" stroke-width="1.5"/>
-              <path d="M7 8h10M7 12h7M7 16h5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-            </svg>
-          </div>
-          <div class="module-text">
-            <h3>新闻</h3>
-            <p>文章管理</p>
-          </div>
-          <div class="module-arrow">
-            <svg viewBox="0 0 16 16" fill="currentColor" width="14" height="14"><path d="M6.22 3.22a.75.75 0 011.06 0l4.25 4.25a.75.75 0 010 1.06l-4.25 4.25a.75.75 0 01-1.06-1.06L9.94 8 6.22 4.28a.75.75 0 010-1.06z"/></svg>
-          </div>
-        </router-link>
-
-        <router-link to="/profile" class="module-card">
-          <div class="module-icon-wrap">
-            <svg viewBox="0 0 24 24" fill="none" width="22" height="22">
-              <circle cx="12" cy="8" r="4" stroke="currentColor" stroke-width="1.5"/>
-              <path d="M4 20c0-4 3.582-7 8-7s8 3 8 7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-            </svg>
-          </div>
-          <div class="module-text">
-            <h3>个人中心</h3>
-            <p>账号与密钥</p>
+            <h3>{{ m.label }}</h3>
+            <p>{{ m.desc }}</p>
           </div>
           <div class="module-arrow">
             <svg viewBox="0 0 16 16" fill="currentColor" width="14" height="14"><path d="M6.22 3.22a.75.75 0 011.06 0l4.25 4.25a.75.75 0 010 1.06l-4.25 4.25a.75.75 0 01-1.06-1.06L9.94 8 6.22 4.28a.75.75 0 010-1.06z"/></svg>
@@ -101,6 +71,40 @@ import { computed } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 
 const authStore = useAuthStore()
+
+const allModules = [
+  {
+    path: '/todo',
+    label: 'ToDo',
+    desc: '任务管理',
+    module: 'todo',
+    svg: '<rect x="3" y="5" width="18" height="16" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M7 9l2 2 4-4M7 15l2 2 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>',
+  },
+  {
+    path: '/tick',
+    label: '打卡',
+    desc: '习惯追踪',
+    module: 'tick',
+    svg: '<rect x="3" y="5" width="18" height="16" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M8 12l3 3 5-6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>',
+  },
+  {
+    path: '/news',
+    label: '新闻',
+    desc: '文章管理',
+    module: 'news',
+    svg: '<rect x="3" y="4" width="18" height="16" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M7 8h10M7 12h7M7 16h5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>',
+  },
+  {
+    path: '/profile',
+    label: '个人中心',
+    desc: '账号与密钥',
+    svg: '<circle cx="12" cy="8" r="4" stroke="currentColor" stroke-width="1.5"/><path d="M4 20c0-4 3.582-7 8-7s8 3 8 7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>',
+  },
+]
+
+const visibleModules = computed(() =>
+  allModules.filter(m => !m.module || authStore.canAccess(m.module))
+)
 
 const greeting = computed(() => {
   const h = new Date().getHours()
