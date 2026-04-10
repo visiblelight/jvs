@@ -559,12 +559,9 @@ onUnmounted(() => {
 const totalPoints = computed(() => allTasks.value.reduce((s, t) => s + (t.total_points || 0), 0))
 const totalTicks  = computed(() => allTasks.value.reduce((s, t) => s + (t.total_ticks  || 0), 0))
 const maxStreak   = computed(() => {
-  if (!allTasks.value.length) return 0
-  const toDays = { daily: 1, weekly: 7, monthly: 30 }
-  return allTasks.value.reduce((max, t) => {
-    const days = (t.current_streak || 0) * (toDays[t.frequency] || 1)
-    return days > max ? days : max
-  }, 0)
+  const dailyTasks = allTasks.value.filter(t => t.frequency === 'daily')
+  if (!dailyTasks.length) return 0
+  return Math.max(...dailyTasks.map(t => t.current_streak || 0))
 })
 
 // --- Pending Tasks ---
