@@ -561,7 +561,8 @@ const totalTicks  = computed(() => allTasks.value.reduce((s, t) => s + (t.total_
 const maxStreak   = computed(() => {
   if (!allTasks.value.length) return { value: 0, unit: '天' }
   const best = allTasks.value.reduce((a, b) => (b.current_streak || 0) > (a.current_streak || 0) ? b : a)
-  return { value: best.current_streak || 0, unit: freqUnit(best.frequency) }
+  const unitMap = { daily: '天', weekly: '周', monthly: '个月' }
+  return { value: best.current_streak || 0, unit: unitMap[best.frequency] || '次' }
 })
 
 // --- Pending Tasks ---
