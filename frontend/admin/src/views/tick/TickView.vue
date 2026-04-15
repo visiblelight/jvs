@@ -540,19 +540,35 @@ const fetchGlobalLogs = async () => {
     }
 }
 
+// --- 跨天自动刷新 ---
+let lastLoadDate = ''
+const getTodayStr = () => {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
+}
+
 const loadData = async () => {
    loading.value = true
    await fetchTasks()
    await fetchGlobalLogs()
    loading.value = false
+   lastLoadDate = getTodayStr()
+}
+
+const handleVisibilityChange = () => {
+  if (document.visibilityState === 'visible' && lastLoadDate && lastLoadDate !== getTodayStr()) {
+    loadData()
+  }
 }
 
 onMounted(() => {
    loadData()
    document.addEventListener('click', handleOutsideClick)
+   document.addEventListener('visibilitychange', handleVisibilityChange)
 })
 onUnmounted(() => {
    document.removeEventListener('click', handleOutsideClick)
+   document.removeEventListener('visibilitychange', handleVisibilityChange)
 })
 
 // --- Global Stats ---
