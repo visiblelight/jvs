@@ -55,6 +55,7 @@ services:
     profiles: [plan1]
     image: nginx:alpine
     restart: unless-stopped
+    entrypoint: /reload-with-cert-watch.sh
     ports:
       - "80:80"
       - "443:443"
@@ -62,6 +63,7 @@ services:
       DOMAIN: ${DOMAIN}
     volumes:
       - ./nginx/plan1.conf.template:/etc/nginx/templates/default.conf.template:ro
+      - ./nginx/reload-with-cert-watch.sh:/reload-with-cert-watch.sh:ro
       - letsencrypt:/etc/letsencrypt:ro
       - certbot_webroot:/var/www/certbot:ro
       - ./dist/admin:/usr/share/nginx/admin:ro
@@ -75,6 +77,7 @@ services:
     profiles: [plan2]
     image: nginx:alpine
     restart: unless-stopped
+    entrypoint: /reload-with-cert-watch.sh
     ports:
       - "80:80"
       - "443:443"
@@ -83,6 +86,7 @@ services:
       CORS_ORIGINS: ${CORS_ORIGINS}
     volumes:
       - ./nginx/plan2.conf.template:/etc/nginx/templates/default.conf.template:ro
+      - ./nginx/reload-with-cert-watch.sh:/reload-with-cert-watch.sh:ro
       - letsencrypt:/etc/letsencrypt:ro
       - certbot_webroot:/var/www/certbot:ro
     depends_on:
