@@ -131,6 +131,9 @@ sleep 2
 if [ "$DEPLOY_MODE" = standalone ]; then
     compose exec -T nginx-plan1 nginx -t
     compose exec -T nginx-plan1 nginx -s reload
+else
+    # Recreate to render newly published templates and refresh bind-mounted files.
+    compose up -d --no-deps --force-recreate --wait --wait-timeout 120 nginx-edge
 fi
 
 info "✓ Deployment complete ($DEPLOY_MODE)"

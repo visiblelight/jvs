@@ -52,11 +52,11 @@ jobs:
           username: ${{ secrets.VPS_USERNAME }}
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
+            set -eu
             echo "1. 正在进入部署目录..."
             cd ${{ secrets.VPS_PROJECT_DIR }}
 
             echo "2. 正在拉取远端最新代码..."
-            set -eu
             test -z "$(git status --porcelain --untracked-files=no)" || { echo 'Tracked files modified; refusing deployment'; exit 1; }
             git fetch origin main
             git merge-base --is-ancestor '${{ github.sha }}' origin/main
