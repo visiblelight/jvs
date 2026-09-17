@@ -42,6 +42,7 @@ services:
         condition: service_started
 
   certbot:
+    profiles: [plan1, plan2]
     image: certbot/certbot
     restart: unless-stopped
     volumes:
@@ -92,9 +93,36 @@ services:
     depends_on:
       - backend
 
+  # Shared Edge terminates TLS; only this Web service joins the proxy network.
+  nginx-edge:
+    profiles: [edge]
+    image: nginx:alpine
+    restart: unless-stopped
+    environment:
+      DOMAIN: ${DOMAIN}
+    volumes:
+      - ./nginx/edge.conf.template:/etc/nginx/templates/default.conf.template:ro
+      - ./dist/admin:/usr/share/nginx/admin:ro
+      - ./dist/mobile:/usr/share/nginx/mobile:ro
+    networks:
+      default: {}
+      edge:
+        aliases: [jvs-web]
+    depends_on: [backend]
+    healthcheck:
+      test: [CMD, wget, -q, --spider, http://127.0.0.1/healthz]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
 volumes:
   postgres_data:
   redis_data:
   uploads:
   letsencrypt:
   certbot_webroot:
+
+networks:
+  edge:
+    external: true
+    name: ${JVS_EDGE_NETWORK:-jvs-edge}

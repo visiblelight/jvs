@@ -52,9 +52,16 @@ set -a; source .env; set +a
 [ -n "${SECRET_KEY:-}" ]        || error "SECRET_KEY is not set in .env"
 [ -n "${POSTGRES_PASSWORD:-}" ] || error "POSTGRES_PASSWORD is not set in .env"
 
-# ── 3. 拉取最新代码 ────────────────────────────────────────────────────────────
-info "Pulling latest code..."
-git pull
+# The caller selects an exact Git revision; building must not pull a newer one.
+DEPLOY_MODE=${DEPLOY_MODE:-standalone}
+case "$DEPLOY_MODE" in
+    standalone) PROFILE=plan1 ;;
+    edge) PROFILE=edge; docker network inspect "${JVS_EDGE_NETWORK:-jvs-edge}" >/dev/null ;;
+    *) error "DEPLOY_MODE must be standalone or edge" ;;
+esac
+compose() { docker compose -p jvs --profile "$PROFILE" "$@"; }
+exec 9>/var/lock/jvs-deploy.lock
+flock -n 9 || error "Another JVS deployment is running"
 
 # ── 4. 构建前端（通过 Node Docker 容器，无需宿主机安装 Node）────────────────────
 info "Building frontend/admin..."
@@ -76,21 +83,22 @@ cp -r frontend/mobile/dist/. dist/mobile/
 
 # ── 5. 构建后端镜像 ────────────────────────────────────────────────────────────
 info "Building backend image..."
-docker compose build backend
+compose build backend
 
 # ── 6. 启动数据库和 Redis ──────────────────────────────────────────────────────
 info "Starting postgres and redis..."
-docker compose up -d postgres redis
+compose up -d postgres redis
 info "Waiting for postgres to be ready..."
-until docker compose exec postgres pg_isready -U "${POSTGRES_USER}" -d "${POSTGRES_DB}" 2>/dev/null; do
+until compose exec -T postgres pg_isready -U "${POSTGRES_USER}" -d "${POSTGRES_DB}" 2>/dev/null; do
     echo 'waiting for postgres...'; sleep 2;
 done
 
 # ── 7. 数据库迁移 ──────────────────────────────────────────────────────────────
 info "Running database migrations..."
-docker compose run --rm backend alembic upgrade head
+compose run --rm backend alembic upgrade head
 
 # ── 8. SSL 证书 ────────────────────────────────────────────────────────────────
+if [ "$DEPLOY_MODE" = standalone ]; then
 CERT_PATH="/etc/letsencrypt/live/${DOMAIN}/fullchain.pem"
 
 if [ -f "/var/lib/docker/volumes/jvs_letsencrypt/_data/live/${DOMAIN}/fullchain.pem" ] 2>/dev/null ||
@@ -112,15 +120,20 @@ else
         -d "${DOMAIN}" || warn "SSL certificate issuance failed. Continuing without HTTPS."
 fi
 
+fi
+
 # ── 9. 启动全部服务 ────────────────────────────────────────────────────────────
-info "Starting all services (plan1)..."
-docker compose --profile plan1 up -d --remove-orphans
+info "Starting services ($DEPLOY_MODE)..."
+compose up -d --wait --wait-timeout 120
 
 # Reload nginx to pick up the certificate
 sleep 2
-docker compose exec nginx-plan1 nginx -s reload 2>/dev/null || true
+if [ "$DEPLOY_MODE" = standalone ]; then
+    compose exec -T nginx-plan1 nginx -t
+    compose exec -T nginx-plan1 nginx -s reload
+fi
 
-info "✓ Deployment complete (plan1)"
+info "✓ Deployment complete ($DEPLOY_MODE)"
 info "  Admin:  https://${DOMAIN}/"
 info "  Mobile: https://${DOMAIN}/mobile/"
 info "  API:    https://${DOMAIN}/api/"
