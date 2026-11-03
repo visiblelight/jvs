@@ -87,6 +87,7 @@
 </template>
 
 <script setup>
+import { parseInstant } from '@/utils/datetime.mjs'
 import { ref, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import { getItems } from '@/api/todo'
 import { useTodoStore } from '@/stores/todo'
@@ -190,7 +191,7 @@ function highlight(text) {
 
 function formatDate(d) {
   if (!d) return ''
-  const date = new Date(d)
+  const date = parseInstant(d)
   return `${date.getMonth() + 1}/${date.getDate()} ${date.getHours()}:${String(date.getMinutes()).padStart(2, '0')}`
 }
 </script>

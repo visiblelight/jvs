@@ -11,13 +11,16 @@ from pathlib import Path
 # 确保 backend/ 在 sys.path 中
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from app.core.database import Base, engine, SessionLocal
+from sqlalchemy import inspect
+
+from app.core.database import engine, SessionLocal
 from app.core.security import hash_password
 from app.models.user import User
 
 
 def main():
-    Base.metadata.create_all(bind=engine)
+    if not inspect(engine).has_table("alembic_version"):
+        raise SystemExit("请先执行 alembic upgrade head，再创建管理员。")
     db = SessionLocal()
     try:
         existing = db.query(User).filter(User.username == "admin").first()

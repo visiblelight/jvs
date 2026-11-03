@@ -121,6 +121,7 @@
 </template>
 
 <script setup>
+import { parseInstant } from '@/utils/datetime.mjs'
 import { ref, computed, onMounted } from 'vue'
 import { useTodoStore } from '@/stores/todo'
 import * as api from '@/api/todo'
@@ -168,12 +169,12 @@ async function handleDelete(item) {
 }
 
 function isOverdue(date) {
-  return date && new Date(date) < new Date()
+  return date && parseInstant(date) < new Date()
 }
 
 function formatDate(d) {
   if (!d) return ''
-  const date = new Date(d)
+  const date = parseInstant(d)
   const now = new Date()
   const diff = Math.ceil((date - now) / 86400000)
   if (diff === 0) return '今天'

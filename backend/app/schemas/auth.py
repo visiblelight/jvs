@@ -14,6 +14,7 @@ class TokenResponse(BaseModel):
 
 
 class UserInfo(BaseModel):
+    business_timezone: str
     id: int
     username: str
     is_active: bool

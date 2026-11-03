@@ -135,6 +135,7 @@
 </template>
 
 <script setup>
+import { formatLocalDatetime, localInputToISO } from '@/utils/datetime.mjs'
 import { computed, reactive, ref } from 'vue'
 import { useTodoStore } from '@/stores/todo'
 import { createItem, updateItem } from '@/api/todo'
@@ -158,12 +159,7 @@ const isEdit = computed(() => !!props.editItem)
 const priorities = ['极低', '低', '中等', '高', '极高']
 const importances = ['不重要', '一般', '偏重要', '非常重要', '极其重要']
 
-function formatLocalDatetime(d) {
-  if (!d) return ''
-  const dt = new Date(d)
-  const pad = (n) => String(n).padStart(2, '0')
-  return `${dt.getFullYear()}-${pad(dt.getMonth() + 1)}-${pad(dt.getDate())}T${pad(dt.getHours())}:${pad(dt.getMinutes())}`
-}
+
 
 // 是否指定执行时间（有 scheduled_at 则默认开启）
 const hasScheduled = ref(!!props.editItem?.scheduled_at)
@@ -204,7 +200,7 @@ const flatCategories = computed(() => {
 })
 
 async function handleSubmit() {
-  const scheduledIso = hasScheduled.value && form.scheduled_at ? new Date(form.scheduled_at).toISOString() : null
+  const scheduledIso = hasScheduled.value && form.scheduled_at ? localInputToISO(form.scheduled_at) : null
   const payload = {
     title: form.title,
     description: form.description || null,
@@ -212,7 +208,7 @@ async function handleSubmit() {
     importance: form.importance,
     category_id: form.category_id || null,
     scheduled_at: scheduledIso,
-    due_date: hasScheduled.value ? scheduledIso : (form.due_date ? new Date(form.due_date).toISOString() : null),
+    due_date: hasScheduled.value ? scheduledIso : (form.due_date ? localInputToISO(form.due_date) : null),
     tag_ids: form.tag_ids,
   }
   if (isEdit.value) {

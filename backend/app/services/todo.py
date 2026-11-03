@@ -2,6 +2,9 @@ from datetime import datetime, timezone
 from typing import Optional
 
 from sqlalchemy.orm import Session
+from fastapi import HTTPException
+
+from app.services.ownership import owned, owned_many
 
 from app.models.todo import TodoCategory, TodoComment, TodoItem, TodoTag, todo_item_tags
 
@@ -16,10 +19,11 @@ def get_category_tree(db: Session, user_id: int) -> list[dict]:
         .all()
     )
     lookup: dict[int, dict] = {}
+    category_ids = {cat.id for cat in categories}
     for cat in categories:
         lookup[cat.id] = {
             "id": cat.id,
-            "parent_id": cat.parent_id,
+            "parent_id": cat.parent_id if cat.parent_id in category_ids else None,
             "name": cat.name,
             "sort_order": cat.sort_order,
             "children": [],
@@ -35,6 +39,7 @@ def get_category_tree(db: Session, user_id: int) -> list[dict]:
 
 
 def create_category(db: Session, user_id: int, name: str, parent_id: Optional[int], sort_order: int) -> TodoCategory:
+    owned(db, TodoCategory, parent_id, user_id, "父分类")
     cat = TodoCategory(user_id=user_id, name=name, parent_id=parent_id, sort_order=sort_order)
     db.add(cat)
     db.commit()
@@ -43,9 +48,16 @@ def create_category(db: Session, user_id: int, name: str, parent_id: Optional[in
 
 
 def update_category(db: Session, category: TodoCategory, **kwargs) -> TodoCategory:
+    parent_id = kwargs.get("parent_id")
+    seen = {category.id}
+    while parent_id is not None:
+        if parent_id in seen:
+            raise HTTPException(status_code=400, detail="分类不能循环引用")
+        seen.add(parent_id)
+        parent = owned(db, TodoCategory, parent_id, category.user_id, "父分类")
+        parent_id = parent.parent_id
     for k, v in kwargs.items():
-        if v is not None:
-            setattr(category, k, v)
+        setattr(category, k, v)
     db.commit()
     db.refresh(category)
     return category
@@ -86,6 +98,31 @@ def delete_tag(db: Session, tag: TodoTag) -> None:
 
 # ── 事项 ──
 
+TRANSITIONS = {
+    "pending": {"pending", "paused", "completed"},
+    "paused": {"pending", "paused", "completed"},
+    "completed": {"pending", "paused", "completed", "archived"},
+    "archived": {"archived", "completed"},
+}
+
+
+def get_item(db: Session, item_id: int, user_id: int, include_deleted=False) -> TodoItem:
+    query = db.query(TodoItem).filter(
+        TodoItem.id == item_id, TodoItem.user_id == user_id, TodoItem.purged_at.is_(None)
+    )
+    if not include_deleted:
+        query = query.filter(TodoItem.is_deleted.is_(False))
+    item = query.first()
+    if item is None:
+        raise HTTPException(status_code=404, detail="事项不存在")
+    return item
+
+
+def require_editable(item):
+    if item.purged_at is not None or item.is_deleted:
+        raise HTTPException(status_code=404, detail="事项不存在")
+
+
 from sqlalchemy import and_, or_
 
 def get_items(
@@ -116,7 +153,7 @@ def get_items(
 
     if status:
         query = query.filter(TodoItem.status == status)
-    else:
+    elif not is_deleted:
         # 默认不显示归档事项
         query = query.filter(TodoItem.status != "archived")
     if category_id is not None:
@@ -139,10 +176,10 @@ def get_items(
 
 
 def create_item(db: Session, user_id: int, tag_ids: list[int], **kwargs) -> TodoItem:
+    owned(db, TodoCategory, kwargs.get("category_id"), user_id, "分类")
+    tags = owned_many(db, TodoTag, tag_ids, user_id, "标签")
     item = TodoItem(user_id=user_id, **kwargs)
-    if tag_ids:
-        tags = db.query(TodoTag).filter(TodoTag.id.in_(tag_ids), TodoTag.user_id == user_id).all()
-        item.tags = tags
+    item.tags = tags
     db.add(item)
     db.commit()
     db.refresh(item)
@@ -150,42 +187,54 @@ def create_item(db: Session, user_id: int, tag_ids: list[int], **kwargs) -> Todo
 
 
 def update_item(db: Session, item: TodoItem, tag_ids: Optional[list[int]], user_id: int, **kwargs) -> TodoItem:
+    require_editable(item)
+    old_status = item.status
+    new_status = kwargs.get("status", old_status)
+    if "status" in kwargs and new_status not in TRANSITIONS.get(old_status, set()):
+        raise HTTPException(status_code=400, detail="不允许该状态转换；仅已完成事项可归档，归档事项需先取消归档")
+    if "category_id" in kwargs:
+        owned(db, TodoCategory, kwargs["category_id"], user_id, "分类")
+    tags = owned_many(db, TodoTag, tag_ids, user_id, "标签") if tag_ids is not None else None
     for k, v in kwargs.items():
         setattr(item, k, v)
     if tag_ids is not None:
-        tags = db.query(TodoTag).filter(TodoTag.id.in_(tag_ids), TodoTag.user_id == user_id).all()
         item.tags = tags
-    # 自动设置完成时间
-    new_status = kwargs.get("status")
-    if new_status == "completed" and item.completed_at is None:
-        item.completed_at = datetime.now(timezone.utc)
-    elif new_status and new_status not in ("completed", "archived"):
-        item.completed_at = None
-    # 自动设置归档时间
-    if new_status == "archived":
-        item.archived_at = datetime.now(timezone.utc)
-        if item.completed_at is None:
-            item.completed_at = datetime.now(timezone.utc)
-    elif new_status and new_status != "archived":
-        item.archived_at = None
+    if new_status != old_status:
+        now = datetime.now(timezone.utc)
+        if new_status == "completed" and item.completed_at is None:
+            item.completed_at = now
+        elif new_status in ("pending", "paused"):
+            item.completed_at = None
+        item.archived_at = now if new_status == "archived" else None
     db.commit()
     db.refresh(item)
     return item
 
 
 def delete_item(db: Session, item: TodoItem) -> None:
-    item.is_deleted = True
-    item.deleted_at = datetime.now(timezone.utc)
+    if item.purged_at is not None:
+        raise HTTPException(status_code=404, detail="事项不存在")
+    if not item.is_deleted:
+        item.is_deleted = True
+        item.deleted_at = datetime.now(timezone.utc)
     db.commit()
 
 
 def restore_item(db: Session, item: TodoItem) -> None:
+    if item.purged_at is not None:
+        raise HTTPException(status_code=404, detail="事项不存在")
+    if not item.is_deleted:
+        raise HTTPException(status_code=400, detail="事项不在回收站中")
     item.is_deleted = False
     item.deleted_at = None
     db.commit()
 
 
 def hard_delete_item(db: Session, item: TodoItem) -> None:
+    if item.purged_at is not None:
+        raise HTTPException(status_code=404, detail="事项不存在")
+    if not item.is_deleted and item.status != "archived":
+        raise HTTPException(status_code=400, detail="仅回收站或归档事项可永久删除")
     item.purged_at = datetime.now(timezone.utc)
     db.commit()
 
@@ -206,7 +255,12 @@ def get_comments(db: Session, item_id: int, user_id: int) -> list[TodoComment]:
 
 
 def create_comment(db: Session, item_id: int, user_id: int, content: str) -> TodoComment:
-    comment = TodoComment(todo_item_id=item_id, user_id=user_id, content=content)
+    get_item(db, item_id, user_id)
+    now = datetime.now(timezone.utc)
+    comment = TodoComment(
+        todo_item_id=item_id, user_id=user_id, content=content,
+        created_at=now, updated_at=now,
+    )
     db.add(comment)
     db.commit()
     db.refresh(comment)
@@ -214,6 +268,7 @@ def create_comment(db: Session, item_id: int, user_id: int, content: str) -> Tod
 
 
 def update_comment(db: Session, comment: TodoComment, content: str) -> TodoComment:
+    get_item(db, comment.todo_item_id, comment.user_id)
     comment.content = content
     db.commit()
     db.refresh(comment)
@@ -221,6 +276,7 @@ def update_comment(db: Session, comment: TodoComment, content: str) -> TodoComme
 
 
 def delete_comment(db: Session, comment: TodoComment) -> None:
+    get_item(db, comment.todo_item_id, comment.user_id)
     comment.deleted_at = datetime.now(timezone.utc)
     db.commit()
 

@@ -1,4 +1,4 @@
-from datetime import datetime
+from pydantic import AwareDatetime
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -133,11 +133,13 @@ def delete_tag(
 
 @router.get("/items/calendar", response_model=TodoItemListOut)
 def list_calendar_items(
-    start: datetime = Query(...),
-    end: datetime = Query(...),
+    start: AwareDatetime = Query(...),
+    end: AwareDatetime = Query(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    if start >= end:
+        raise HTTPException(status_code=422, detail="end 必须晚于 start")
     items = todo_svc.get_calendar_items(db, current_user.id, start, end)
     return TodoItemListOut(items=items, total=len(items))
 
@@ -181,9 +183,7 @@ def get_item(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    item = db.query(TodoItem).filter(TodoItem.id == item_id, TodoItem.user_id == current_user.id).first()
-    if not item:
-        raise HTTPException(status_code=404, detail="事项不存在")
+    item = todo_svc.get_item(db, item_id, current_user.id, include_deleted=True)
     return item
 
 
@@ -194,9 +194,7 @@ def update_item(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    item = db.query(TodoItem).filter(TodoItem.id == item_id, TodoItem.user_id == current_user.id).first()
-    if not item:
-        raise HTTPException(status_code=404, detail="事项不存在")
+    item = todo_svc.get_item(db, item_id, current_user.id)
     data = body.model_dump(exclude={"tag_ids"}, exclude_unset=True)
     return todo_svc.update_item(db, item, tag_ids=body.tag_ids, user_id=current_user.id, **data)
 
@@ -207,9 +205,7 @@ def delete_item(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    item = db.query(TodoItem).filter(TodoItem.id == item_id, TodoItem.user_id == current_user.id).first()
-    if not item:
-        raise HTTPException(status_code=404, detail="事项不存在")
+    item = todo_svc.get_item(db, item_id, current_user.id, include_deleted=True)
     todo_svc.delete_item(db, item)
 
 
@@ -219,9 +215,7 @@ def restore_item(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    item = db.query(TodoItem).filter(TodoItem.id == item_id, TodoItem.user_id == current_user.id).first()
-    if not item:
-        raise HTTPException(status_code=404, detail="事项不存在")
+    item = todo_svc.get_item(db, item_id, current_user.id, include_deleted=True)
     todo_svc.restore_item(db, item)
     return item
 
@@ -232,9 +226,7 @@ def hard_delete_item(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    item = db.query(TodoItem).filter(TodoItem.id == item_id, TodoItem.user_id == current_user.id).first()
-    if not item:
-        raise HTTPException(status_code=404, detail="事项不存在")
+    item = todo_svc.get_item(db, item_id, current_user.id, include_deleted=True)
     todo_svc.hard_delete_item(db, item)
 
 
@@ -245,15 +237,7 @@ def update_item_status(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    item = db.query(TodoItem).filter(TodoItem.id == item_id, TodoItem.user_id == current_user.id).first()
-    if not item:
-        raise HTTPException(status_code=404, detail="事项不存在")
-    # 归档校验：仅已完成的事项可归档
-    if body.status == "archived" and item.status != "completed":
-        raise HTTPException(status_code=400, detail="仅已完成的事项可以归档")
-    # 取消归档只能回到 completed
-    if item.status == "archived" and body.status not in ("completed", "archived"):
-        raise HTTPException(status_code=400, detail="归档事项需先取消归档")
+    item = todo_svc.get_item(db, item_id, current_user.id)
     return todo_svc.update_item(db, item, tag_ids=None, user_id=current_user.id, status=body.status)
 
 
@@ -265,9 +249,7 @@ def list_comments(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    item = db.query(TodoItem).filter(TodoItem.id == item_id, TodoItem.user_id == current_user.id).first()
-    if not item:
-        raise HTTPException(status_code=404, detail="事项不存在")
+    item = todo_svc.get_item(db, item_id, current_user.id, include_deleted=True)
     return todo_svc.get_comments(db, item_id, current_user.id)
 
 
@@ -278,9 +260,7 @@ def create_comment(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    item = db.query(TodoItem).filter(TodoItem.id == item_id, TodoItem.user_id == current_user.id).first()
-    if not item:
-        raise HTTPException(status_code=404, detail="事项不存在")
+    item = todo_svc.get_item(db, item_id, current_user.id)
     return todo_svc.create_comment(db, item_id, current_user.id, body.content)
 
 
@@ -292,6 +272,7 @@ def update_comment(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    todo_svc.get_item(db, item_id, current_user.id)
     comment = db.query(TodoComment).filter(
         TodoComment.id == comment_id,
         TodoComment.todo_item_id == item_id,
@@ -310,6 +291,7 @@ def delete_comment(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    todo_svc.get_item(db, item_id, current_user.id)
     comment = db.query(TodoComment).filter(
         TodoComment.id == comment_id,
         TodoComment.todo_item_id == item_id,

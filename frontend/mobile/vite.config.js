@@ -1,10 +1,10 @@
-import { defineConfig } from 'vite'
+import { defineConfig, loadEnv } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import { resolve } from 'path'
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   plugins: [vue()],
-  base: '/mobile/',
+  base: loadEnv(mode, process.cwd(), '').VITE_BASE_PATH || '/mobile/',
   resolve: {
     alias: {
       '@': resolve(__dirname, 'src'),
@@ -17,4 +17,4 @@ export default defineConfig({
       '/uploads': 'http://localhost:8000',
     },
   },
-})
+}))

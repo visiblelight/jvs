@@ -38,6 +38,7 @@
 </template>
 
 <script setup>
+import { parseInstant } from '@/utils/datetime.mjs'
 import { ref, watch } from 'vue'
 import { useDialog } from '@/composables/useDialog'
 const { confirm } = useDialog()
@@ -94,7 +95,7 @@ function handleClose() {
 
 function formatDate(ds) {
   if (!ds) return '未知时间'
-  const d = new Date(ds)
+  const d = parseInstant(ds)
   return `${d.toLocaleDateString()} ${d.toLocaleTimeString()}`
 }
 </script>

@@ -76,6 +76,7 @@
 </template>
 
 <script setup>
+import { parseInstant } from '@/utils/datetime.mjs'
 import { reactive, ref, computed } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import request from '@/api/request'
@@ -156,7 +157,7 @@ async function handleChangePassword() {
 
 function formatDate(d) {
   if (!d) return '-'
-  return new Date(d).toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' })
+  return parseInstant(d).toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' })
 }
 </script>
 

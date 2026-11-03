@@ -1,4 +1,5 @@
-from datetime import datetime, timezone, date
+from datetime import date
+from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
@@ -40,7 +41,7 @@ def list_tasks(
     current_user: User = Depends(get_current_user),
 ):
     tasks = tick_svc.get_tasks(db, current_user.id, is_archived=is_archived)
-    items = [tick_svc.enrich_task_out(db, t) for t in tasks]
+    items = tick_svc.enrich_tasks_out(db, tasks)
     return TickTaskListOut(items=items, total=len(items))
 
 
@@ -94,14 +95,6 @@ def do_tick(
     current_user: User = Depends(get_current_user),
 ):
     task = _get_own_task(db, task_id, current_user.id)
-    if task.is_archived:
-        raise HTTPException(status_code=400, detail="任务已归档，无法打卡")
-    today = datetime.now(timezone.utc).date()
-    if today < task.start_date:
-        raise HTTPException(status_code=400, detail="任务尚未开始")
-    if task.end_date and today > task.end_date:
-        raise HTTPException(status_code=400, detail="任务已结束")
-
     quality = body.quality if body else None
     note = body.note if body else None
 
@@ -164,10 +157,11 @@ def list_logs(
 def list_all_logs(
     start_date: date | None = None,
     end_date: date | None = None,
+    date_basis: Literal["submitted", "calendar"] = "submitted",
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    items = tick_svc.get_all_logs(db, current_user.id, start_date=start_date, end_date=end_date)
+    items = tick_svc.get_all_logs(db, current_user.id, start_date=start_date, end_date=end_date, date_basis=date_basis)
     return TickLogListOut(items=items, total=len(items))
 
 

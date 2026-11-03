@@ -4,6 +4,7 @@ from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
+from app.core.datetime import UTCDateTime
 
 
 class User(Base):
@@ -16,10 +17,10 @@ class User(Base):
     is_superuser: Mapped[bool] = mapped_column(Boolean, default=False)
     avatar: Mapped[str | None] = mapped_column(String(200), nullable=True, default=None)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime, default=lambda: datetime.now(timezone.utc)
+        UTCDateTime, default=lambda: datetime.now(timezone.utc)
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime,
+        UTCDateTime,
         default=lambda: datetime.now(timezone.utc),
         onupdate=lambda: datetime.now(timezone.utc),
     )
@@ -45,5 +46,5 @@ class UserModule(Base):
     )
     module_key: Mapped[str] = mapped_column(String(32), primary_key=True)
     granted_at: Mapped[datetime] = mapped_column(
-        DateTime, default=lambda: datetime.now(timezone.utc)
+        UTCDateTime, default=lambda: datetime.now(timezone.utc)
     )

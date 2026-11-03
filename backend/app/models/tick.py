@@ -6,6 +6,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
+from app.core.datetime import UTCDateTime
 
 
 class TickTask(Base):
@@ -24,11 +25,11 @@ class TickTask(Base):
     enable_points: Mapped[bool] = mapped_column(Boolean, default=False)
     points_rule: Mapped[str] = mapped_column(Text, nullable=False, default="[]")  # JSON
     is_archived: Mapped[bool] = mapped_column(Boolean, default=False)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime, default=lambda: datetime.now(timezone.utc)
+    created_at: Mapped[datetime | None] = mapped_column(
+        UTCDateTime, default=lambda: datetime.now(timezone.utc)
     )
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime,
+    updated_at: Mapped[datetime | None] = mapped_column(
+        UTCDateTime,
         default=lambda: datetime.now(timezone.utc),
         onupdate=lambda: datetime.now(timezone.utc),
     )
@@ -45,14 +46,14 @@ class TickLog(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     task_id: Mapped[int] = mapped_column(Integer, ForeignKey("tick_tasks.id", ondelete="CASCADE"), nullable=False, index=True)
-    ticked_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    ticked_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False)
     period_key: Mapped[str] = mapped_column(String(10), nullable=False)  # 2026-04-06 / 2026-W15 / 2026-04
     quality: Mapped[int | None] = mapped_column(Integer, nullable=True)
     note: Mapped[str | None] = mapped_column(Text, nullable=True)
     points_earned: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     is_makeup: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime, default=lambda: datetime.now(timezone.utc)
+    created_at: Mapped[datetime | None] = mapped_column(
+        UTCDateTime, default=lambda: datetime.now(timezone.utc)
     )
 
     task = relationship("TickTask", back_populates="logs", lazy="select")

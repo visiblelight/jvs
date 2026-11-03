@@ -3,6 +3,7 @@
     <PageHeader title="打卡" back-to="/home" />
 
     <div class="tick-content">
+      <p class="empty-sub">打卡周期时区：{{ businessTimezone }}</p>
       <div v-if="store.loading && !store.tasks.length" class="loading-hint">
         <div class="spinner" />
       </div>
@@ -85,12 +86,16 @@
 </template>
 
 <script setup>
-import { onMounted, reactive, ref } from 'vue'
+import { useAuthStore } from '@/stores/auth'
+import { watchBusinessDay } from '@/utils/tick.mjs'
+import { onMounted, onUnmounted, computed, reactive, ref } from 'vue'
 import PageHeader from '@/components/PageHeader.vue'
 import { useTickStore } from '@/stores/tick'
 import * as api from '@/api/tick'
 
 const store = useTickStore()
+const authStore = useAuthStore()
+const businessTimezone = computed(() => authStore.user?.business_timezone || 'Asia/Shanghai')
 const expandedId = ref(null)
 const tickingId = ref(null)
 const tickForm = reactive({ quality: 0, note: '' })
@@ -151,7 +156,12 @@ async function handleUndo(t) {
   }
 }
 
-onMounted(() => store.fetchTasks())
+let stopDayWatch
+onMounted(() => {
+  stopDayWatch = watchBusinessDay(() => store.fetchTasks(), () => businessTimezone.value)
+  store.fetchTasks().catch(() => alert('加载打卡数据失败，请重试'))
+})
+onUnmounted(() => stopDayWatch?.())
 </script>
 
 <style scoped>

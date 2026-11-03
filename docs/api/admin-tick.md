@@ -172,3 +172,13 @@ Base Path: `/api/admin/tick`
   "total": 1
 }
 ```
+
+## 周期与补录规则（Plan 024）
+
+业务时区固定配置为 `Asia/Shanghai`，日界为上海午夜，周使用 ISO 周（周一至周日）。`/api/admin/auth/me` 返回 `business_timezone`；前端显示该时区并在业务午夜、恢复可见时刷新。
+
+`period_key` 必须是匹配任务频率的有效日、ISO 周或月。补打卡仅接受过去周期，且与任务有效日期区间有交集（包括起止日所在的不完整周／月）；已归档任务拒绝补录。已结束但未归档的任务可以补录有效历史周期。补录固定 0 分，不重算历史积分，后续连续次数接续；普通打卡的阶梯积分采用不超过当前连续次数的最高阶梯。
+
+`GET /api/admin/tick/logs` 新增 `date_basis=submitted|calendar`，默认 submitted：按业务时区的实际提交日期过滤。calendar 按所属周期与日期区间的交集返回，包含近期补录的历史记录及计算周／月完成态所需的日志。`ticked_at` 始终是实际提交的 UTC 时间点，`period_key` 是目标周期，不能混用。end_date 包含当天。
+
+任务的 description、end_date 显式传 null 可清空。非空字段拒绝 null；结束日期不得早于开始日期。积分规则必须包含正整数 streak 和非负整数 points，从 streak=1 开始且阶梯不重复；每项最大 1000000。已有打卡记录时修改 frequency 返回 400。非法周期、重复打卡（含并发）返回 400，结构不合法的任务输入返回 422。

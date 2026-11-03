@@ -1,5 +1,6 @@
 <template>
   <div class="tick-dashboard">
+    <p class="timezone-hint">打卡周期时区：{{ businessTimezone }}</p>
     <!-- Header -->
     <header class="page-header">
       <div class="header-content">
@@ -360,13 +361,13 @@
                            </div>
                            <div class="log-info">
                               <h4>{{ getTaskTitle(log.task_id) }}</h4>
-                              <div class="log-date">{{ new Date(log.ticked_at).toLocaleString('zh-CN', {month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit'}) }}</div>
+                              <div class="log-date">{{ parseInstant(log.ticked_at).toLocaleString('zh-CN', {month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit'}) }}</div>
                               <div class="log-note" v-if="log.note">"{{ log.note }}"</div>
                            </div>
                         </div>
                         <div class="log-right">
                            <div class="log-meta">
-                              <span v-if="log.is_makeup" class="tag tag-makeup">补打</span>
+                              <span v-if="log.is_makeup" class="tag tag-makeup">补打 · {{ log.period_key }}</span>
                               <span v-if="log.quality" class="tag tag-yellow">⭐ {{log.quality}}</span>
                               <span v-if="log.points_earned" class="tag tag-green">+{{log.points_earned}}分</span>
                            </div>
@@ -386,7 +387,7 @@
            :style="{ top: tooltipState.y + 'px', left: tooltipState.x + 'px' }">
           <h4>{{ tooltipState.item.task.title }}</h4>
           <div v-if="tooltipState.item.isDone && tooltipState.item.log">
-             <p>打卡时间: {{ new Date(tooltipState.item.log.ticked_at).toLocaleString() }}</p>
+             <p>打卡时间: {{ parseInstant(tooltipState.item.log.ticked_at).toLocaleString() }}</p>
              <p v-if="tooltipState.item.log.quality">完成质量: ⭐ {{ tooltipState.item.log.quality }}</p>
              <p v-if="tooltipState.item.log.points_earned">获得积分: +{{ tooltipState.item.log.points_earned }}分</p>
              <p v-if="tooltipState.item.log.note">备注: {{ tooltipState.item.log.note }}</p>
@@ -457,11 +458,18 @@
 </template>
 
 <script setup>
+import { useAuthStore } from '@/stores/auth'
+import { businessDateKey, localDateKey, parseDateKey, parseInstant } from '@/utils/datetime.mjs'
+import { periodKey, periodBounds, calendarLogDate, watchBusinessDay } from '@/utils/tick.mjs'
+
 import { ref, computed, onMounted, onUnmounted, reactive, nextTick } from 'vue'
 import * as api from '@/api/tick'
 import { useDialog } from '@/composables/useDialog'
 
 const { toast, confirm } = useDialog()
+const authStore = useAuthStore()
+const businessTimezone = computed(() => authStore.user?.business_timezone || 'Asia/Shanghai')
+const todayKey = ref(businessDateKey(new Date(), businessTimezone.value))
 
 const loading = ref(true)
 const tasks = ref([])     // Active tasks
@@ -507,7 +515,7 @@ const toggleAllDrawerFilter = (e) => {
     else drawerFilterIds.value = []
 }
 
-const currentDate = ref(new Date())
+const currentDate = ref(parseDateKey(todayKey.value))
 
 // --- Data Fetching ---
 const fetchTasks = async () => {
@@ -527,48 +535,36 @@ const fetchGlobalLogs = async () => {
     try {
       const y = currentDate.value.getFullYear()
       const m = currentDate.value.getMonth()
-      const firstDay = new Date(y, m, 1)
-      const lastDay = new Date(y, m + 1, 0)
       
-      const startStr = new Date(firstDay.getTime() - 7 * 86400000).toISOString().slice(0, 10)
-      const endStr = new Date(lastDay.getTime() + 7 * 86400000).toISOString().slice(0, 10)
+      const startStr = localDateKey(new Date(y, m, -6))
+      const endStr = localDateKey(new Date(y, m + 1, 7))
       
-      const { data } = await api.getAllLogs({ start_date: startStr, end_date: endStr })
+      const { data } = await api.getAllLogs({ start_date: startStr, end_date: endStr, date_basis: 'calendar' })
       globalLogs.value = data.items || []
     } catch(e) {
       console.warn("Could not fetch global logs", e)
+      throw e
     }
 }
 
-// --- 跨天自动刷新 ---
-let lastLoadDate = ''
-const getTodayStr = () => {
-  const d = new Date()
-  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
-}
-
+// Refresh even when the page stays visible across business midnight.
 const loadData = async () => {
    loading.value = true
-   await fetchTasks()
-   await fetchGlobalLogs()
-   loading.value = false
-   lastLoadDate = getTodayStr()
+   try {
+      await fetchTasks()
+      await fetchGlobalLogs()
+      todayKey.value = businessDateKey(new Date(), businessTimezone.value)
+   } finally { loading.value = false }
 }
-
-const handleVisibilityChange = () => {
-  if (document.visibilityState === 'visible' && lastLoadDate && lastLoadDate !== getTodayStr()) {
-    loadData()
-  }
-}
-
+let stopDayWatch
 onMounted(() => {
-   loadData()
+   stopDayWatch = watchBusinessDay(loadData, () => businessTimezone.value)
+   loadData().catch(() => toast('加载打卡数据失败，请重试'))
    document.addEventListener('click', handleOutsideClick)
-   document.addEventListener('visibilitychange', handleVisibilityChange)
 })
 onUnmounted(() => {
+   stopDayWatch?.()
    document.removeEventListener('click', handleOutsideClick)
-   document.removeEventListener('visibilitychange', handleVisibilityChange)
 })
 
 // --- Global Stats ---
@@ -590,12 +586,12 @@ const weeklyPending = computed(() => pendingTasks.value.filter(t => t.frequency 
 const monthlyPending = computed(() => pendingTasks.value.filter(t => t.frequency === 'monthly'))
 
 const remainingDaysWeek = computed(() => {
-    const d = new Date().getDay();
+    const d = parseDateKey(todayKey.value).getDay();
     return d === 0 ? 0 : 7 - d;
 })
 
 const remainingDaysMonth = computed(() => {
-    const today = new Date();
+    const today = parseDateKey(todayKey.value);
     const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
     return lastDay - today.getDate();
 })
@@ -620,16 +616,16 @@ const currentMonth = computed(() => currentDate.value.getMonth() + 1)
 
 const prevMonth = () => {
    currentDate.value = new Date(currentYear.value, currentMonth.value - 2, 1)
-   fetchGlobalLogs()
+   fetchGlobalLogs().catch(() => toast('加载打卡日历失败，请重试'))
 }
 
 const nextMonth = () => {
    currentDate.value = new Date(currentYear.value, currentMonth.value, 1)
-   fetchGlobalLogs()
+   fetchGlobalLogs().catch(() => toast('加载打卡日历失败，请重试'))
 }
 
 const checkWeekend = (dStr) => {
-  const day = new Date(dStr).getDay();
+  const day = parseDateKey(dStr).getDay();
   return day === 0 || day === 6;
 }
 
@@ -645,26 +641,22 @@ const calendarDays = computed(() => {
   const leadingDays = startDay === 0 ? 6 : startDay - 1
   for (let i = leadingDays; i > 0; i--) {
      const d = new Date(y, m, 1 - i)
-     const tzOffset = d.getTimezoneOffset() * 60000;
-     const localIso = (new Date(d.getTime() - tzOffset)).toISOString().slice(0, 10);
+     const localIso = localDateKey(d);
      days.push({ date: d.getDate(), dateStr: localIso, inMonth: false, isWeekend: checkWeekend(localIso) })
   }
   
-  const tzOffset = new Date().getTimezoneOffset() * 60000;
-  const todayStr = (new Date(Date.now() - tzOffset)).toISOString().slice(0, 10)
+  const todayStr = todayKey.value
   
   for (let i = 1; i <= lastDay.getDate(); i++) {
      const d = new Date(y, m, i)
-     const tzOffset = d.getTimezoneOffset() * 60000;
-     const localIso = (new Date(d.getTime() - tzOffset)).toISOString().slice(0, 10);
+     const localIso = localDateKey(d);
      days.push({ date: i, dateStr: localIso, inMonth: true, isToday: localIso === todayStr, isWeekend: checkWeekend(localIso) })
   }
   
   const remaining = (7 - (days.length % 7)) % 7
   for (let i = 1; i <= remaining; i++) {
      const d = new Date(y, m + 1, i)
-     const tzOffset = d.getTimezoneOffset() * 60000;
-     const localIso = (new Date(d.getTime() - tzOffset)).toISOString().slice(0, 10);
+     const localIso = localDateKey(d);
      days.push({ date: d.getDate(), dateStr: localIso, inMonth: false, isWeekend: checkWeekend(localIso) })
   }
   return days
@@ -673,83 +665,28 @@ const calendarDays = computed(() => {
 const logsByDate = computed(() => {
   const map = {}
   globalLogs.value.forEach(log => {
-      let dateKey
-      if (log.is_makeup) {
-          if (/^\d{4}-\d{2}-\d{2}$/.test(log.period_key)) {
-              // daily makeup: period_key 即日历日期
-              dateKey = log.period_key
-          } else if (/^\d{4}-W\d{2}$/.test(log.period_key)) {
-              // weekly makeup: 显示在该周最后一天（周日）
-              const [year, week] = log.period_key.split('-W')
-              const jan4 = new Date(Date.UTC(+year, 0, 4))
-              const mon = new Date(jan4.getTime() - ((jan4.getUTCDay() || 7) - 1) * 86400000)
-              const sunday = new Date(mon.getTime() + (+week - 1) * 7 * 86400000 + 6 * 86400000)
-              dateKey = sunday.toISOString().slice(0, 10)
-          } else if (/^\d{4}-\d{2}$/.test(log.period_key)) {
-              // monthly makeup: 显示在该月最后一天
-              const [year, month] = log.period_key.split('-')
-              const lastDay = new Date(+year, +month, 0)
-              const tzOffset = lastDay.getTimezoneOffset() * 60000
-              dateKey = (new Date(lastDay.getTime() - tzOffset)).toISOString().slice(0, 10)
-          }
-      }
-      if (!dateKey) {
-          const d = new Date(log.ticked_at)
-          const tzOffset = d.getTimezoneOffset() * 60000;
-          dateKey = (new Date(d.getTime() - tzOffset)).toISOString().slice(0, 10);
-      }
+      const dateKey = calendarLogDate(log, businessTimezone.value)
       if (!map[dateKey]) map[dateKey] = []
       map[dateKey].push(log)
   })
   return map
 })
 
-const isLastDayOfWeek = (dateStr) => new Date(dateStr).getDay() === 0;
-const isLastDayOfMonth = (dateStr) => {
-    const d = new Date(dateStr);
-    const tmr = new Date(d);
-    tmr.setDate(d.getDate() + 1);
-    return tmr.getMonth() !== d.getMonth();
-}
-
 const getDayTasks = (dateStr) => {
-  const today = (new Date(Date.now() - new Date().getTimezoneOffset() * 60000)).toISOString().slice(0, 10);
-  const isFuture = dateStr > today;
-  
-  const activeTasks = allTasks.value.filter(t => t.start_date <= dateStr && (!t.end_date || t.end_date >= dateStr) && calendarFilterIds.value.includes(t.id));
-  const logsOnDate = logsByDate.value[dateStr] || [];
-  
-  const results = [];
-  activeTasks.forEach(t => {
-      const log = logsOnDate.find(l => l.task_id === t.id);
-      if (log) {
-          results.push({ task: t, isDone: true, log });
-      } else if (!isFuture) {
-          if (t.frequency === 'daily') {
-              results.push({ task: t, isDone: false, log: null });
-          } else if (t.frequency === 'weekly') {
-              if (isLastDayOfWeek(dateStr)) {
-                  const dTime = new Date(dateStr).getTime();
-                  const isoWeek = getISOWeek(new Date(dateStr))
-                  const weekPk = `${isoWeek.year}-W${String(isoWeek.week).padStart(2, '0')}`
-                  const tickedInWeek = globalLogs.value.some(l => l.task_id === t.id && (
-                      (new Date(l.ticked_at.split('T')[0]).getTime() >= dTime - 6 * 86400000 && new Date(l.ticked_at.split('T')[0]).getTime() <= dTime) ||
-                      (l.is_makeup && l.period_key === weekPk)
-                  ));
-                  if (!tickedInWeek) results.push({ task: t, isDone: false, log: null });
-              }
-          } else if (t.frequency === 'monthly') {
-              if (isLastDayOfMonth(dateStr)) {
-                  const prefix = dateStr.slice(0, 7);
-                  const tickedInMonth = globalLogs.value.some(l => l.task_id === t.id && (
-                      l.ticked_at.startsWith(prefix) || (l.is_makeup && l.period_key === prefix)
-                  ));
-                  if (!tickedInMonth) results.push({ task: t, isDone: false, log: null });
-              }
-          }
-      }
-  });
-  return results;
+  const results = []
+  for (const task of allTasks.value.filter(t => calendarFilterIds.value.includes(t.id))) {
+    const key = periodKey(task.frequency, dateStr)
+    const [start, end] = periodBounds(task.frequency, key)
+    if (end < task.start_date || (task.end_date && start > task.end_date)) continue
+    const log = (logsByDate.value[dateStr] || []).find(l => l.task_id === task.id)
+    if (log) { results.push({ task, isDone: true, log }); continue }
+    if (dateStr > todayKey.value) continue
+    if (task.frequency === 'daily' || dateStr === end) {
+      const done = globalLogs.value.some(l => l.task_id === task.id && l.period_key === key)
+      if (!done) results.push({ task, isDone: false, log: null })
+    }
+  }
+  return results
 }
 
 const stampStyle = (task) => {
@@ -849,7 +786,7 @@ const form = reactive({
   description: '',
   frequency: 'daily',
   short_name: '',
-  start_date: new Date().toISOString().slice(0, 10),
+  start_date: todayKey.value,
   end_date: '',
   enable_quality: false,
   enable_points: false,
@@ -863,8 +800,7 @@ const openCreateTaskForm = () => {
    form.short_name = ''
    form.description = ''
    form.frequency = 'daily'
-   const tzOffset = new Date().getTimezoneOffset() * 60000;
-   form.start_date = (new Date(Date.now() - tzOffset)).toISOString().slice(0, 10)
+   form.start_date = todayKey.value
    form.end_date = ''
    form.enable_quality = false
    form.enable_points = false
@@ -947,7 +883,7 @@ const openGlobalLogsModal = async () => {
         const { data } = await api.getAllLogs() // Fetch all globally without date constraints
         globalListLogs.value = data.items || []
         // Sort descending
-        globalListLogs.value.sort((a,b) => new Date(b.ticked_at) - new Date(a.ticked_at))
+        globalListLogs.value.sort((a,b) => parseInstant(b.ticked_at) - parseInstant(a.ticked_at))
         if (drawerFilterIds.value.length === 0) {
             drawerFilterIds.value = allTasks.value.map(t => t.id)
         }
@@ -963,7 +899,7 @@ const undoGlobalLog = async (log) => {
         await api.deleteLog(log.id)
         const { data } = await api.getAllLogs()
         globalListLogs.value = data.items || []
-        globalListLogs.value.sort((a,b) => new Date(b.ticked_at) - new Date(a.ticked_at))
+        globalListLogs.value.sort((a,b) => parseInstant(b.ticked_at) - parseInstant(a.ticked_at))
         await loadData()
     } catch(e) {
         toast(e?.response?.data?.detail || '撤销失败')
@@ -976,13 +912,10 @@ const makeupPopover = reactive({ visible: false, x: 0, y: 0, task: null, dateStr
 const openMakeupPopover = (e, item, dateStr) => {
     // 计算 period_key
     const task = item.task
-    let pk = dateStr
-    if (task.frequency === 'weekly') {
-        const d = new Date(dateStr)
-        const iso = getISOWeek(d)
-        pk = `${iso.year}-W${String(iso.week).padStart(2, '0')}`
-    } else if (task.frequency === 'monthly') {
-        pk = dateStr.slice(0, 7)
+    const pk = periodKey(task.frequency, dateStr)
+    if (task.is_archived || pk >= periodKey(task.frequency, todayKey.value)) {
+        toast('只能补录未归档任务的过去周期')
+        return
     }
     makeupPopover.task = task
     makeupPopover.dateStr = dateStr
@@ -1019,14 +952,6 @@ const submitMakeup = async () => {
     } finally {
         makeupPopover.submitting = false
     }
-}
-
-const getISOWeek = (date) => {
-    const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()))
-    const dayNum = d.getUTCDay() || 7
-    d.setUTCDate(d.getUTCDate() + 4 - dayNum)
-    const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1))
-    return { year: d.getUTCFullYear(), week: Math.ceil((((d - yearStart) / 86400000) + 1) / 7) }
 }
 
 </script>

@@ -159,6 +159,7 @@
 </template>
 
 <script setup>
+import { parseInstant } from '@/utils/datetime.mjs'
 import { ref, computed, watch, onMounted } from 'vue'
 import { useTodoStore } from '@/stores/todo'
 
@@ -198,12 +199,12 @@ function sameDay(a, b) {
 
 function formatTime(dt) {
   if (!dt) return ''
-  const d = new Date(dt)
+  const d = parseInstant(dt)
   return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`
 }
 
 function weekStart(d) {
-  const ws = new Date(d)
+  const ws = parseInstant(d)
   ws.setDate(ws.getDate() - ws.getDay())
   ws.setHours(0, 0, 0, 0)
   return ws
@@ -256,8 +257,8 @@ function jumpToMonth(month) {
 function expandItems(items) {
   const result = []
   for (const item of items) {
-    if (item.scheduled_at) result.push({ ...item, _type: 'scheduled', _date: new Date(item.scheduled_at) })
-    else if (item.due_date) result.push({ ...item, _type: 'due',      _date: new Date(item.due_date) })
+    if (item.scheduled_at) result.push({ ...item, _type: 'scheduled', _date: parseInstant(item.scheduled_at) })
+    else if (item.due_date) result.push({ ...item, _type: 'due',      _date: parseInstant(item.due_date) })
   }
   return result.sort((a, b) => a._date - b._date)
 }

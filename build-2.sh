@@ -53,25 +53,28 @@ set -a; source .env; set +a
 [ -n "${POSTGRES_PASSWORD:-}" ] || error "POSTGRES_PASSWORD is not set in .env"
 [ -n "${VERCEL_TOKEN:-}" ]      || error "VERCEL_TOKEN is not set in .env (required for plan2)"
 
-# ── 3. 拉取最新代码 ────────────────────────────────────────────────────────────
-info "Pulling latest code..."
-git pull
+# ── 3. 固定发布版本与部署锁 ────────────────────────────────────────────────────────────
+info "Building the selected Git revision..."
+# The caller selects the revision, just as in build-1.sh.
+compose() { docker compose -p jvs --profile plan2 "$@"; }
+exec 9>/var/lock/jvs-deploy.lock
+flock -n 9 || error "Another JVS deployment is running"
 
 # ── 4. 构建后端镜像 ────────────────────────────────────────────────────────────
 info "Building backend image..."
-docker compose build backend
+compose build backend
 
 # ── 5. 启动数据库和 Redis ──────────────────────────────────────────────────────
 info "Starting postgres and redis..."
-docker compose up -d postgres redis
+compose up -d postgres redis
 info "Waiting for postgres to be ready..."
-until docker compose exec postgres pg_isready -U "${POSTGRES_USER}" -d "${POSTGRES_DB}" 2>/dev/null; do
+until compose exec postgres pg_isready -U "${POSTGRES_USER}" -d "${POSTGRES_DB}" 2>/dev/null; do
     echo 'waiting for postgres...'; sleep 2;
 done
 
 # ── 6. 数据库迁移 ──────────────────────────────────────────────────────────────
 info "Running database migrations..."
-docker compose run --rm backend alembic upgrade head
+compose run --rm backend alembic upgrade head
 
 # ── 7. SSL 证书 ────────────────────────────────────────────────────────────────
 CERT_PATH="/etc/letsencrypt/live/${DOMAIN}/fullchain.pem"
@@ -82,7 +85,7 @@ if docker run --rm -v jvs_letsencrypt:/etc/letsencrypt alpine \
 else
     info "Obtaining SSL certificate for ${DOMAIN} (first-time, standalone mode)..."
     # 首次申请：nginx 尚未启动（启动需要证书），用 standalone 模式直接监听 80 端口
-    docker compose stop nginx-plan2 2>/dev/null || true
+    compose stop nginx-plan2 2>/dev/null || true
     docker run --rm \
         -p 80:80 \
         -v jvs_letsencrypt:/etc/letsencrypt \
@@ -96,11 +99,12 @@ fi
 
 # ── 8. 启动全部后端服务 ────────────────────────────────────────────────────────
 info "Starting all backend services (plan2)..."
-docker compose --profile plan2 up -d --remove-orphans
+compose up -d --wait --wait-timeout 120
 
 # Reload nginx
 sleep 2
-docker compose exec nginx-plan2 nginx -s reload 2>/dev/null || true
+compose exec -T nginx-plan2 nginx -t
+compose up -d --no-deps --force-recreate --wait --wait-timeout 120 nginx-plan2
 
 # ── 9. 部署前端到 Vercel ───────────────────────────────────────────────────────
 info "Deploying frontend/admin to Vercel..."
@@ -123,3 +127,5 @@ info "  Backend API: https://${DOMAIN}/api/"
 info "  Frontend:    Check Vercel dashboard for URLs"
 info ""
 warn "  Remember to set VITE_API_BASE_URL=https://${DOMAIN} in Vercel project settings"
+
+warn "  Set VITE_BASE_PATH=/ for the standalone mobile Vercel project before deploying"

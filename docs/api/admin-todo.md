@@ -121,10 +121,10 @@ Base Path: `/api/admin/todo`
       "importance": 5,
       "status": "pending",
       "category_id": 1,
-      "due_date": "2026-03-20T00:00:00",
+      "due_date": "2026-03-20T00:00:00Z",
       "completed_at": null,
-      "created_at": "2026-03-19T10:00:00",
-      "updated_at": "2026-03-19T10:00:00",
+      "created_at": "2026-03-19T10:00:00Z",
+      "updated_at": "2026-03-19T10:00:00Z",
       "tags": [{ "id": 1, "name": "紧急", "color": "#ff4d4f" }]
     }
   ],
@@ -165,3 +165,17 @@ Base Path: `/api/admin/todo`
 | 字段 | 类型 | 必填 | 说明 |
 |------|------|------|------|
 | status | string | 是 | pending / paused / completed / archived（仅 completed 可设为 archived，archived 需先回到 completed） |
+
+## 关联归属校验（Plan 024）
+
+创建和编辑事项仅允许关联当前用户的分类、标签；分类父级也必须属于当前用户。不存在与无权访问统一返回 404，整次更新不会部分生效。标签 ID 去重后校验，不再静默忽略无效标签。分类不能移动到自己或后代下面（400）；`parent_id: null` 表示移到根分类。
+
+## 状态与删除（Plan 024）
+
+PUT 普通编辑和 PATCH 状态接口遵循同一规则：pending/paused 可互转或完成；completed 可回到 pending/paused 或 archived；archived 只能保持或回到 completed。未知状态和 null 返回 422，禁止转换返回 400。同状态重复保存不会重写完成、归档时间。
+
+一级删除的事项可在回收站读取、恢复（包括已归档事项），但不可编辑、改状态或增改评论。永久删除仅限回收站或归档事项，仍为二级软删除；此后详情、恢复、编辑、评论和再次删除均返回 404，列表与日历不再显示。
+
+## 时间格式（Plan 024）
+
+所有时间点返回带 `Z`（UTC）的 ISO 8601，例如 `2026-11-03T05:00:00Z`，上海客户端显示 13:00。写入截止时间、执行时间、新闻发布时间或提交日历查询边界时必须带 `Z` 或 `+08:00` 等偏移量；无时区时间点返回 422。纯日期 `YYYY-MM-DD` 不做时间点转换。未传字段保持不变，可选字段传 null 可清空。

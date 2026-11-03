@@ -4,6 +4,7 @@ from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.models.news import NewsArticle, NewsCategory, NewsSource
+from app.services.ownership import owned
 
 
 # ── 分类 ──
@@ -111,6 +112,8 @@ def get_articles(
 
 
 def create_article(db: Session, user_id: int, **kwargs) -> NewsArticle:
+    owned(db, NewsCategory, kwargs.get("category_id"), user_id, "分类")
+    owned(db, NewsSource, kwargs.get("source_id"), user_id, "来源")
     article = NewsArticle(user_id=user_id, **kwargs)
     db.add(article)
     db.commit()
@@ -127,9 +130,12 @@ def get_article(db: Session, article_id: int, user_id: int) -> Optional[NewsArti
 
 
 def update_article(db: Session, article: NewsArticle, **kwargs) -> NewsArticle:
+    if "category_id" in kwargs:
+        owned(db, NewsCategory, kwargs["category_id"], article.user_id, "分类")
+    if "source_id" in kwargs:
+        owned(db, NewsSource, kwargs["source_id"], article.user_id, "来源")
     for k, v in kwargs.items():
-        if v is not None:
-            setattr(article, k, v)
+        setattr(article, k, v)
     db.commit()
     db.refresh(article)
     return article

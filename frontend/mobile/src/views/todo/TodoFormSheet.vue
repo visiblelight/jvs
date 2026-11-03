@@ -86,6 +86,7 @@
 </template>
 
 <script setup>
+import { formatLocalDatetime, localInputToISO } from '@/utils/datetime.mjs'
 import { computed, reactive, ref, watch } from 'vue'
 import BottomSheet from '@/components/BottomSheet.vue'
 import { useTodoStore } from '@/stores/todo'
@@ -102,12 +103,7 @@ const saving = ref(false)
 const error = ref('')
 const hasScheduled = ref(false)
 
-function formatLocalDatetime(d) {
-  if (!d) return ''
-  const dt = new Date(d)
-  const pad = (n) => String(n).padStart(2, '0')
-  return `${dt.getFullYear()}-${pad(dt.getMonth() + 1)}-${pad(dt.getDate())}T${pad(dt.getHours())}:${pad(dt.getMinutes())}`
-}
+
 
 const form = reactive({
   title: '', description: '', priority: 3, importance: 3,
@@ -164,7 +160,7 @@ async function handleSubmit() {
   error.value = ''
   saving.value = true
   try {
-    const scheduledIso = hasScheduled.value && form.scheduled_at ? new Date(form.scheduled_at).toISOString() : null
+    const scheduledIso = hasScheduled.value && form.scheduled_at ? localInputToISO(form.scheduled_at) : null
     const payload = {
       title: form.title.trim(),
       description: form.description || null,
@@ -172,7 +168,7 @@ async function handleSubmit() {
       importance: form.importance,
       category_id: form.category_id || null,
       scheduled_at: scheduledIso,
-      due_date: hasScheduled.value ? scheduledIso : (form.due_date ? new Date(form.due_date).toISOString() : null),
+      due_date: hasScheduled.value ? scheduledIso : (form.due_date ? localInputToISO(form.due_date) : null),
       tag_ids: form.tag_ids,
     }
     if (props.item) {

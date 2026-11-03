@@ -24,10 +24,10 @@
 </template>
 
 <script setup>
+import { parseInstant } from '@/utils/datetime.mjs'
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { marked } from 'marked'
-import DOMPurify from 'dompurify'
+import { renderMarkdown } from '@/utils/markdown'
 import { getArticle } from '@/api/news'
 import PageHeader from '@/components/PageHeader.vue'
 
@@ -37,12 +37,12 @@ const loading = ref(true)
 
 const renderedContent = computed(() => {
   if (!article.value?.content) return ''
-  return DOMPurify.sanitize(marked(article.value.content, { breaks: true }))
+  return renderMarkdown(article.value.content)
 })
 
 function formatDate(d) {
   if (!d) return ''
-  return new Date(d).toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' })
+  return parseInstant(d).toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' })
 }
 
 onMounted(async () => {

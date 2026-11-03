@@ -2,7 +2,7 @@ import os
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
+from app.services.images import ImageStaticFiles
 
 from app.core.config import settings
 from app.api.admin import router as admin_router
@@ -25,7 +25,7 @@ app.include_router(admin_router)
 app.include_router(open_router)
 
 os.makedirs("uploads/avatars", exist_ok=True)
-app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
+app.mount("/uploads", ImageStaticFiles(directory="uploads"), name="uploads")
 
 
 @app.get("/health")

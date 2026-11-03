@@ -1,7 +1,10 @@
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator, AwareDatetime
+
+
+from app.schemas.common import UpdateModel
 
 
 # ── 分类 ──
@@ -11,7 +14,8 @@ class NewsCategoryCreate(BaseModel):
     sort_order: int = 0
 
 
-class NewsCategoryUpdate(BaseModel):
+class NewsCategoryUpdate(UpdateModel):
+    non_nullable = ['name', 'sort_order']
     name: Optional[str] = None
     sort_order: Optional[int] = None
 
@@ -31,7 +35,8 @@ class NewsSourceCreate(BaseModel):
     name: str
 
 
-class NewsSourceUpdate(BaseModel):
+class NewsSourceUpdate(UpdateModel):
+    non_nullable = ['name']
     name: Optional[str] = None
 
 
@@ -52,18 +57,19 @@ class NewsArticleCreate(BaseModel):
     source_url: Optional[str] = Field(None, max_length=500)
     source_id: Optional[int] = None
     author: Optional[str] = Field(None, max_length=100)
-    published_at: Optional[datetime] = None
+    published_at: Optional[AwareDatetime] = None
     category_id: Optional[int] = None
 
 
-class NewsArticleUpdate(BaseModel):
+class NewsArticleUpdate(UpdateModel):
+    non_nullable = ['title', 'content']
     title: Optional[str] = Field(None, max_length=300)
     summary: Optional[str] = Field(None, max_length=200)
     content: Optional[str] = None
     source_url: Optional[str] = Field(None, max_length=500)
     source_id: Optional[int] = None
     author: Optional[str] = Field(None, max_length=100)
-    published_at: Optional[datetime] = None
+    published_at: Optional[AwareDatetime] = None
     category_id: Optional[int] = None
 
 
@@ -85,6 +91,20 @@ class NewsArticleOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
+    @model_validator(mode="before")
+    @classmethod
+    def hide_foreign_relations(cls, value):
+        if not hasattr(value, "user_id"):
+            return value
+        data = {name: getattr(value, name, None) for name in cls.model_fields}
+        for relation in ("category", "source"):
+            obj = getattr(value, relation)
+            if obj is not None and obj.user_id != value.user_id:
+                data[relation] = None
+                data[relation + "_id"] = None
+        return data
+
+
 class NewsArticleListOut(BaseModel):
     items: list[NewsArticleOut]
     total: int
@@ -99,5 +119,5 @@ class OpenNewsArticleCreate(BaseModel):
     source_url: Optional[str] = Field(None, max_length=500)
     source_name: Optional[str] = Field(None, max_length=100)
     author: Optional[str] = Field(None, max_length=100)
-    published_at: Optional[datetime] = None
+    published_at: Optional[AwareDatetime] = None
     category_name: Optional[str] = Field(None, max_length=100)

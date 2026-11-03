@@ -79,6 +79,7 @@
 </template>
 
 <script setup>
+import { parseInstant } from '@/utils/datetime.mjs'
 import { ref, onMounted, nextTick } from 'vue'
 import { useNewsStore } from '@/stores/news'
 import PageHeader from '@/components/PageHeader.vue'
@@ -118,7 +119,7 @@ function onScroll(e) {
 
 function formatDate(d) {
   if (!d) return ''
-  return new Date(d).toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' })
+  return parseInstant(d).toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' })
 }
 
 onMounted(() => {

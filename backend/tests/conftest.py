@@ -2,9 +2,11 @@
 测试基础设施：内存 SQLite 库 + TestClient + 常用 fixture
 每个测试函数都在独立的事务中运行，结束后回滚，互不干扰。
 """
+import os
+
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker
 
 from app.core.database import Base
@@ -28,8 +30,20 @@ def _grant_all_modules(db, user_id):
 
 # ── 测试数据库（内存 SQLite，仅用于测试） ──────────────────────────────────────
 
-TEST_DB_URL = "sqlite:///:memory:"
-engine = create_engine(TEST_DB_URL, connect_args={"check_same_thread": False})
+TEST_DB_URL = os.getenv("TEST_DATABASE_URL", "sqlite:///:memory:")
+if not TEST_DB_URL.startswith("sqlite"):
+    from sqlalchemy.engine import make_url
+    assert make_url(TEST_DB_URL).database.endswith("_test"), "Only disposable _test databases are allowed"
+engine = create_engine(TEST_DB_URL, connect_args={"check_same_thread": False} if TEST_DB_URL.startswith("sqlite") else {})
+if TEST_DB_URL.startswith("sqlite"):
+    @event.listens_for(engine, "connect")
+    def sqlite_connect(connection, _):
+        connection.isolation_level = None
+        connection.execute("PRAGMA foreign_keys=ON")
+
+    @event.listens_for(engine, "begin")
+    def sqlite_begin(connection):
+        connection.exec_driver_sql("BEGIN")
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
@@ -46,10 +60,11 @@ def db():
     """每个测试函数获得一个独立连接，测试结束后回滚"""
     connection = engine.connect()
     transaction = connection.begin()
-    session = TestingSessionLocal(bind=connection)
+    session = TestingSessionLocal(bind=connection, join_transaction_mode="create_savepoint")
     yield session
     session.close()
-    transaction.rollback()
+    if transaction.is_active:
+        transaction.rollback()
     connection.close()
 
 

@@ -9,7 +9,7 @@ cd "$(dirname "$0")/backend"
 
 echo ""
 echo "▶ 安装测试依赖..."
-pip install -r requirements-dev.txt -q
+python -m pip install --require-hashes -r requirements-dev.txt -q
 
 echo ""
 echo "▶ 运行后端 API 集成测试..."

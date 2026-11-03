@@ -1,9 +1,12 @@
 import os
-import shutil
+from pathlib import Path
+
+from app.services.images import read_image, write_image
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.core.deps import get_db, get_current_user
 from app.core.security import create_access_token, verify_password, hash_password
 from app.models.user import User
@@ -37,6 +40,7 @@ def login(body: LoginRequest, db: Session = Depends(get_db)):
 @router.get("/me", response_model=UserInfo)
 def get_me(current_user: User = Depends(get_current_user)):
     return UserInfo(
+        business_timezone=settings.BUSINESS_TIMEZONE,
         id=current_user.id,
         username=current_user.username,
         is_active=current_user.is_active,
@@ -65,28 +69,22 @@ async def upload_avatar(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    if file.content_type not in ALLOWED_MIME_TYPES:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="不支持的文件类型")
-
-    contents = await file.read()
-    if len(contents) > MAX_AVATAR_SIZE:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="文件大小不能超过 2MB")
-
-    ext = file.filename.rsplit(".", 1)[-1].lower() if "." in file.filename else "jpg"
-    filename = f"{current_user.id}.{ext}"
-    os.makedirs(AVATARS_DIR, exist_ok=True)
-
-    # Remove any existing avatar file for this user (different extension)
-    for f in os.listdir(AVATARS_DIR):
-        if f.startswith(f"{current_user.id}.") and f != filename:
-            os.remove(os.path.join(AVATARS_DIR, f))
-
-    with open(os.path.join(AVATARS_DIR, filename), "wb") as fp:
-        fp.write(contents)
-
-    current_user.avatar = filename
-    db.commit()
-    return {"avatar": filename}
+    contents, ext = await read_image(file, MAX_AVATAR_SIZE)
+    old_avatar = current_user.avatar
+    target = write_image(AVATARS_DIR, contents, ext, prefix=f"{current_user.id}.")
+    try:
+        current_user.avatar = target.name
+        db.commit()
+    except Exception:
+        db.rollback()
+        target.unlink(missing_ok=True)
+        raise
+    if old_avatar and Path(old_avatar).name == old_avatar:
+        try:
+            (Path(AVATARS_DIR) / old_avatar).unlink(missing_ok=True)
+        except OSError:
+            pass  # A cleanup failure must not undo a successful avatar update.
+    return {"avatar": target.name}
 
 
 @router.delete("/avatar", status_code=status.HTTP_204_NO_CONTENT)
@@ -94,7 +92,7 @@ def delete_avatar(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    if current_user.avatar:
+    if current_user.avatar and Path(current_user.avatar).name == current_user.avatar:
         path = os.path.join(AVATARS_DIR, current_user.avatar)
         if os.path.exists(path):
             os.remove(path)

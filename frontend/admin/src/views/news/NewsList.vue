@@ -71,6 +71,7 @@
 </template>
 
 <script setup>
+import { parseInstant } from '@/utils/datetime.mjs'
 import { computed, inject } from 'vue'
 import { useNewsStore } from '@/stores/news'
 
@@ -89,7 +90,7 @@ function debounceSearch(val) {
 
 function formatDate(d) {
   if (!d) return ''
-  return new Date(d).toLocaleDateString('zh-CN', { year: 'numeric', month: 'short', day: 'numeric' })
+  return parseInstant(d).toLocaleDateString('zh-CN', { year: 'numeric', month: 'short', day: 'numeric' })
 }
 </script>
 

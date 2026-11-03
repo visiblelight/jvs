@@ -108,6 +108,7 @@
 </template>
 
 <script setup>
+import { parseInstant } from '@/utils/datetime.mjs'
 import { ref, computed } from 'vue'
 import { useTodoStore } from '@/stores/todo'
 import { updateItemStatus } from '@/api/todo'
@@ -127,14 +128,14 @@ const completedItems = computed(() =>
 
 function formatDate(d) {
   if (!d) return ''
-  const date = new Date(d)
+  const date = parseInstant(d)
   const now = new Date()
   const isThisYear = date.getFullYear() === now.getFullYear()
   return date.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric', ...(!isThisYear && { year: 'numeric' }) })
 }
 
 function isOverdue(item) {
-  return item.due_date && item.status !== 'completed' && new Date(item.due_date) < new Date()
+  return item.due_date && item.status !== 'completed' && parseInstant(item.due_date) < new Date()
 }
 
 async function toggleStatus(item) {

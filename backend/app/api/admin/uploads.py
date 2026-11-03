@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, 
 
 from app.core.deps import get_current_user
 from app.models.user import User
+from app.services.images import read_image, write_image
 
 router = APIRouter(prefix="/uploads", tags=["admin-uploads"])
 
@@ -19,30 +20,7 @@ async def upload_image(
     file: UploadFile = File(...),
     current_user: User = Depends(get_current_user),
 ):
-    if file.content_type not in ALLOWED_TYPES:
-        raise HTTPException(
-            status_code=400,
-            detail=f"不支持的文件类型 {file.content_type}，仅允许 jpg/png/gif/webp",
-        )
-
-    contents = await file.read()
-    if len(contents) > MAX_SIZE:
-        raise HTTPException(status_code=400, detail="图片大小不能超过 5MB")
-
-    # 限制 module 名只含字母数字和横线，防止路径穿越
-    safe_module = "".join(c for c in module if c.isalnum() or c == "-") or "general"
-
-    ext = os.path.splitext(file.filename or "")[1].lower()
-    if ext not in {".jpg", ".jpeg", ".png", ".gif", ".webp"}:
-        ext = ".png"
-
-    dest_dir = os.path.join("uploads", safe_module)
-    os.makedirs(dest_dir, exist_ok=True)
-
-    filename = f"{uuid.uuid4()}{ext}"
-    dest_path = os.path.join(dest_dir, filename)
-
-    with open(dest_path, "wb") as f:
-        f.write(contents)
-
-    return {"url": f"/uploads/{safe_module}/{filename}"}
+    contents, ext = await read_image(file, MAX_SIZE)
+    safe_module = "".join(c for c in module if c.isascii() and (c.isalnum() or c == "-"))[:64] or "general"
+    target = write_image(os.path.join("uploads", safe_module), contents, ext)
+    return {"url": f"/uploads/{safe_module}/{target.name}"}

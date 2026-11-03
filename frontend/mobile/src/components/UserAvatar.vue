@@ -2,7 +2,7 @@
   <div class="user-avatar" :style="{ width: size + 'px', height: size + 'px' }">
     <img
       v-if="avatar && !imgError"
-      :src="'/uploads/avatars/' + avatar + '?t=' + ts"
+      :src="uploadURL('/uploads/avatars/' + avatar) + '?t=' + ts"
       class="avatar-img"
       @error="imgError = true"
     />
@@ -15,6 +15,7 @@
 </template>
 
 <script setup>
+import { uploadURL } from '@/utils/backend'
 import { ref, watch } from 'vue'
 const props = defineProps({
   avatar: { type: String, default: null },

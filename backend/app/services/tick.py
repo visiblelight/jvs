@@ -1,8 +1,15 @@
 import json
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, time, timedelta, timezone
+from zoneinfo import ZoneInfo
+from collections import defaultdict
 from typing import Optional
 
-from sqlalchemy import func
+from sqlalchemy import func, and_, or_
+from sqlalchemy.exc import IntegrityError
+from fastapi import HTTPException
+from app.core.config import settings
+from app.core.datetime import utc_now, business_today
+from app.services.tick_periods import compute_period_key, period_bounds, previous_period, streak_from_keys, check_task_period
 from sqlalchemy.orm import Session
 
 from app.models.tick import TickLog, TickTask
@@ -10,74 +17,24 @@ from app.models.tick import TickLog, TickTask
 
 # ── 周期计算 ──
 
-def compute_period_key(frequency: str, dt: date) -> str:
-    """根据频率和日期计算 period_key"""
-    if frequency == "daily":
-        return dt.isoformat()  # 2026-04-06
-    elif frequency == "weekly":
-        iso = dt.isocalendar()
-        return f"{iso[0]}-W{iso[1]:02d}"  # 2026-W15
-    elif frequency == "monthly":
-        return dt.strftime("%Y-%m")  # 2026-04
-    raise ValueError(f"Unknown frequency: {frequency}")
-
-
-def _prev_period_key(frequency: str, period_key: str) -> str:
-    """计算上一个周期的 period_key"""
-    if frequency == "daily":
-        d = date.fromisoformat(period_key)
-        return (d - timedelta(days=1)).isoformat()
-    elif frequency == "weekly":
-        year, week = period_key.split("-W")
-        d = date.fromisocalendar(int(year), int(week), 1)
-        prev = d - timedelta(weeks=1)
-        iso = prev.isocalendar()
-        return f"{iso[0]}-W{iso[1]:02d}"
-    elif frequency == "monthly":
-        year, month = period_key.split("-")
-        y, m = int(year), int(month)
-        m -= 1
-        if m == 0:
-            m = 12
-            y -= 1
-        return f"{y:04d}-{m:02d}"
-    raise ValueError(f"Unknown frequency: {frequency}")
+_prev_period_key = previous_period
 
 
 def compute_streak(db: Session, task_id: int, frequency: str, current_period: str, include_current: bool = True) -> int:
-    """计算连续打卡周期数。include_current=True 时，如果当前周期已打卡则计入。"""
-    streak = 0
-    pk = current_period
-
-    if include_current:
-        log = db.query(TickLog).filter(TickLog.task_id == task_id, TickLog.period_key == pk).first()
-        if log:
-            streak += 1
-            pk = _prev_period_key(frequency, pk)
-        else:
-            return 0
-
-    while True:
-        log = db.query(TickLog).filter(TickLog.task_id == task_id, TickLog.period_key == pk).first()
-        if log:
-            streak += 1
-            pk = _prev_period_key(frequency, pk)
-        else:
-            break
-
-    return streak
+    keys = {key for (key,) in db.query(TickLog.period_key).filter(TickLog.task_id == task_id)}
+    start = current_period if include_current else previous_period(frequency, current_period)
+    return streak_from_keys(keys, frequency, start)
 
 
 def compute_points(points_rule: list[dict], streak: int) -> int:
     """根据阶梯积分规则和当前连续天数计算本次得分"""
     if not points_rule or streak <= 0:
         return 0
-    sorted_rule = sorted(points_rule, key=lambda r: r["streak"])
-    result = sorted_rule[-1]["points"]  # 默认最高档
-    for r in sorted_rule:
-        if streak <= r["streak"]:
-            result = r["points"]
+    result = 0
+    for rule in sorted(points_rule, key=lambda r: r["streak"]):
+        if rule["streak"] > streak:
             break
+        result = rule["points"]
     return result
 
 
@@ -116,9 +73,13 @@ def create_task(db: Session, user_id: int, **kwargs) -> TickTask:
 
 
 def update_task(db: Session, task: TickTask, **kwargs) -> TickTask:
+    start = kwargs.get("start_date", task.start_date)
+    end = kwargs.get("end_date", task.end_date)
+    if end is not None and end < start:
+        raise HTTPException(status_code=422, detail="结束日期不能早于开始日期")
+    if kwargs.get("frequency", task.frequency) != task.frequency and db.query(TickLog.id).filter(TickLog.task_id == task.id).first():
+        raise HTTPException(status_code=400, detail="已有打卡记录的任务不能修改频率，请创建新任务")
     for k, v in kwargs.items():
-        if v is None:
-            continue
         if k == "frequency_config":
             setattr(task, k, json.dumps(v))
         elif k == "points_rule":
@@ -135,19 +96,26 @@ def delete_task(db: Session, task: TickTask) -> None:
     db.commit()
 
 
-def enrich_task_out(db: Session, task: TickTask) -> dict:
-    """将 TickTask ORM 对象转换为含统计字段的 dict"""
-    today = datetime.now(timezone.utc).date()
-    current_pk = compute_period_key(task.frequency, today)
+def enrich_tasks_out(db, tasks, now=None):
+    now = now or utc_now()
+    grouped = defaultdict(list)
+    if tasks:
+        for row in db.query(TickLog.task_id, TickLog.period_key, TickLog.points_earned).filter(TickLog.task_id.in_([t.id for t in tasks])):
+            grouped[row.task_id].append(row)
+    return [enrich_task_out(db, task, rows=grouped[task.id], now=now) for task in tasks]
 
-    total_ticks = db.query(func.count(TickLog.id)).filter(TickLog.task_id == task.id).scalar() or 0
-    total_points = db.query(func.coalesce(func.sum(TickLog.points_earned), 0)).filter(TickLog.task_id == task.id).scalar()
-    ticked = db.query(TickLog).filter(TickLog.task_id == task.id, TickLog.period_key == current_pk).first()
-    if ticked:
-        streak = compute_streak(db, task.id, task.frequency, current_pk, include_current=True)
-    else:
-        prev_pk = _prev_period_key(task.frequency, current_pk)
-        streak = compute_streak(db, task.id, task.frequency, prev_pk, include_current=True)
+
+def enrich_task_out(db: Session, task: TickTask, rows=None, now=None) -> dict:
+    today = business_today(now or utc_now())
+    current_pk = compute_period_key(task.frequency, today)
+    if rows is None:
+        rows = db.query(TickLog.period_key, TickLog.points_earned).filter(TickLog.task_id == task.id).all()
+    keys = {row.period_key for row in rows}
+    total_ticks = len(rows)
+    total_points = sum(row.points_earned for row in rows)
+    ticked = current_pk in keys
+    start = current_pk if ticked else previous_period(task.frequency, current_pk)
+    streak = streak_from_keys(keys, task.frequency, start)
 
     return {
         "id": task.id,
@@ -167,8 +135,21 @@ def enrich_task_out(db: Session, task: TickTask) -> dict:
         "total_ticks": total_ticks,
         "current_streak": streak,
         "total_points": total_points,
-        "ticked_this_period": ticked is not None,
+        "ticked_this_period": ticked,
     }
+
+
+def _save_log(db, log):
+    db.add(log)
+    try:
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        constraint = getattr(getattr(exc.orig, "diag", None), "constraint_name", None)
+        if constraint == "uq_tick_log_task_period" or "UNIQUE constraint failed: tick_logs.task_id, tick_logs.period_key" in str(exc.orig):
+            raise ValueError("当前周期已打卡") from exc
+        raise
+    db.refresh(log)
 
 
 # ── 打卡 / 撤销 ──
@@ -181,8 +162,15 @@ def do_tick(
     note: Optional[str] = None,
 ) -> tuple[TickLog, int, int]:
     """执行打卡。返回 (log, current_streak, total_points)"""
-    today = datetime.now(timezone.utc).date()
+    now = utc_now()
+    today = business_today(now)
     pk = compute_period_key(task.frequency, today)
+    if task.is_archived:
+        raise ValueError("任务已归档，无法打卡")
+    if today < task.start_date:
+        raise ValueError("任务尚未开始")
+    if task.end_date and today > task.end_date:
+        raise ValueError("任务已结束")
 
     # 检查是否已打卡
     existing = db.query(TickLog).filter(TickLog.task_id == task.id, TickLog.period_key == pk).first()
@@ -203,15 +191,13 @@ def do_tick(
     log = TickLog(
         user_id=user_id,
         task_id=task.id,
-        ticked_at=datetime.now(timezone.utc),
+        ticked_at=now,
         period_key=pk,
         quality=quality,
         note=note,
         points_earned=points,
     )
-    db.add(log)
-    db.commit()
-    db.refresh(log)
+    _save_log(db, log)
 
     total_points = db.query(func.coalesce(func.sum(TickLog.points_earned), 0)).filter(TickLog.task_id == task.id).scalar()
 
@@ -227,10 +213,15 @@ def makeup_tick(
     quality: Optional[int] = None,
 ) -> TickLog:
     """补打卡：写入历史周期，得 0 分，标记 is_makeup=True"""
-    today = datetime.now(timezone.utc).date()
+    now = utc_now()
+    today = business_today(now)
     current_pk = compute_period_key(task.frequency, today)
 
-    if period_key >= current_pk:
+    if task.is_archived:
+        raise ValueError("任务已归档，无法补打卡")
+    start, _ = check_task_period(task, period_key)
+    current_start, _ = period_bounds(task.frequency, current_pk)
+    if start >= current_start:
         raise ValueError("补打卡只能针对过去的周期")
 
     existing = db.query(TickLog).filter(TickLog.task_id == task.id, TickLog.period_key == period_key).first()
@@ -240,22 +231,21 @@ def makeup_tick(
     log = TickLog(
         user_id=user_id,
         task_id=task.id,
-        ticked_at=datetime.now(timezone.utc),
+        ticked_at=now,
         period_key=period_key,
         note=note,
         quality=quality,
         points_earned=0,
         is_makeup=True,
     )
-    db.add(log)
-    db.commit()
-    db.refresh(log)
+    _save_log(db, log)
     return log
 
 
 def undo_tick(db: Session, task: TickTask) -> None:
     """撤销当前周期的打卡"""
-    today = datetime.now(timezone.utc).date()
+    now = utc_now()
+    today = business_today(now)
     pk = compute_period_key(task.frequency, today)
     log = db.query(TickLog).filter(TickLog.task_id == task.id, TickLog.period_key == pk).first()
     if not log:
@@ -280,14 +270,29 @@ def get_logs(
 
 
 def get_all_logs(
-    db: Session,
-    user_id: int,
-    start_date: Optional[date] = None,
-    end_date: Optional[date] = None,
+    db: Session, user_id: int, start_date: Optional[date] = None,
+    end_date: Optional[date] = None, date_basis: str = "submitted",
 ) -> list[TickLog]:
-    q = db.query(TickLog).filter(TickLog.user_id == user_id)
-    if start_date:
-        q = q.filter(func.date(TickLog.ticked_at) >= start_date)
-    if end_date:
-        q = q.filter(func.date(TickLog.ticked_at) <= end_date)
+    if start_date and end_date and start_date > end_date:
+        raise HTTPException(status_code=422, detail="结束日期不能早于开始日期")
+    q = db.query(TickLog).join(TickTask).filter(TickLog.user_id == user_id, TickTask.user_id == user_id)
+    if date_basis == "calendar":
+        # Period overlap includes late makeups AND weekly/monthly logs needed
+        # to calculate completion markers outside their actual submission day.
+        conditions = []
+        for frequency in ("daily", "weekly", "monthly"):
+            parts = [TickTask.frequency == frequency]
+            if start_date:
+                parts.append(TickLog.period_key >= compute_period_key(frequency, start_date))
+            if end_date:
+                parts.append(TickLog.period_key <= compute_period_key(frequency, end_date))
+            conditions.append(and_(*parts))
+        q = q.filter(or_(*conditions))
+    else:
+        zone = ZoneInfo(settings.BUSINESS_TIMEZONE)
+        if start_date:
+            q = q.filter(TickLog.ticked_at >= datetime.combine(start_date, time.min, zone))
+        if end_date:
+            if end_date < date.max:
+                q = q.filter(TickLog.ticked_at < datetime.combine(end_date + timedelta(days=1), time.min, zone))
     return q.order_by(TickLog.ticked_at.asc()).all()

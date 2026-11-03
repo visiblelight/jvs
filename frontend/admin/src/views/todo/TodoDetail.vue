@@ -186,17 +186,14 @@
 </template>
 
 <script setup>
+import { parseInstant, timeAgo } from '@/utils/datetime.mjs'
 import { computed, ref, watch, nextTick } from 'vue'
 import { useTodoStore } from '@/stores/todo'
 import { updateItemStatus, deleteItem, getComments, createComment, updateComment, deleteComment } from '@/api/todo'
 import { uploadImage } from '@/api/uploads'
-import { marked } from 'marked'
-import DOMPurify from 'dompurify'
+import { renderMarkdown } from '@/utils/markdown'
 
-function renderMarkdown(text) {
-  if (!text) return ''
-  return DOMPurify.sanitize(marked.parse(text))
-}
+
 
 defineEmits(['edit'])
 
@@ -230,31 +227,20 @@ function cancelConfirm() {
 
 const isOverdue = computed(() => {
   const item = store.currentItem
-  return item?.due_date && item.status !== 'completed' && new Date(item.due_date) < new Date()
+  return item?.due_date && item.status !== 'completed' && parseInstant(item.due_date) < new Date()
 })
 
 function formatDate(d) {
   if (!d) return ''
-  return new Date(d).toLocaleString('zh-CN', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+  return parseInstant(d).toLocaleString('zh-CN', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
 }
 
 function formatDateFull(d) {
   if (!d) return ''
-  return new Date(d).toLocaleString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' })
+  return parseInstant(d).toLocaleString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' })
 }
 
-function timeAgo(d) {
-  if (!d) return ''
-  const diff = Date.now() - new Date(d).getTime()
-  const min = Math.floor(diff / 60000)
-  if (min < 1) return '刚刚'
-  if (min < 60) return `${min} 分钟前`
-  const hr = Math.floor(min / 60)
-  if (hr < 24) return `${hr} 小时前`
-  const day = Math.floor(hr / 24)
-  if (day < 30) return `${day} 天前`
-  return formatDate(d)
-}
+
 
 async function handleStatusChange(e) {
   await updateItemStatus(store.currentItem.id, e.target.value)

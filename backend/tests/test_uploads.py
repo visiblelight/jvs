@@ -4,9 +4,14 @@
 """
 import io
 import pytest
+from PIL import Image
 
 
-def make_image_file(content=b"fake-image-data", filename="test.png", content_type="image/png"):
+def make_image_file(content=None, filename="test.png", content_type="image/png"):
+    if content is None:
+        stream = io.BytesIO()
+        Image.new("RGB", (2, 2), "red").save(stream, format="JPEG" if content_type == "image/jpeg" else "PNG")
+        content = stream.getvalue()
     return ("file", (filename, io.BytesIO(content), content_type))
 
 

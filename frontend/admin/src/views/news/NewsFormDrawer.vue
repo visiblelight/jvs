@@ -77,6 +77,7 @@
 </template>
 
 <script setup>
+import { formatLocalDatetime, localInputToISO } from '@/utils/datetime.mjs'
 import { reactive, ref } from 'vue'
 import { useNewsStore } from '@/stores/news'
 import { createArticle, updateArticle } from '@/api/news'
@@ -96,12 +97,7 @@ const props = defineProps({
 const emit = defineEmits(['close', 'saved'])
 const store = useNewsStore()
 
-function formatLocalDatetime(d) {
-  if (!d) return ''
-  const dt = new Date(d)
-  const pad = (n) => String(n).padStart(2, '0')
-  return `${dt.getFullYear()}-${pad(dt.getMonth() + 1)}-${pad(dt.getDate())}T${pad(dt.getHours())}:${pad(dt.getMinutes())}`
-}
+
 
 const form = reactive({
   title: props.editArticle?.title || '',
@@ -117,7 +113,7 @@ const form = reactive({
 async function handleSubmit() {
   const data = { ...form }
   if (!data.published_at) data.published_at = null
-  else data.published_at = new Date(data.published_at).toISOString()
+  else data.published_at = localInputToISO(data.published_at)
 
   if (props.editArticle) {
     await updateArticle(props.editArticle.id, data)

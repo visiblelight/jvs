@@ -53,11 +53,11 @@
 </template>
 
 <script setup>
+import { parseInstant } from '@/utils/datetime.mjs'
 import { computed } from 'vue'
 import { useDialog } from '@/composables/useDialog'
 const { confirm } = useDialog()
-import { marked } from 'marked'
-import DOMPurify from 'dompurify'
+import { renderMarkdown } from '@/utils/markdown'
 import { useNewsStore } from '@/stores/news'
 import { deleteArticle } from '@/api/news'
 
@@ -66,12 +66,12 @@ const store = useNewsStore()
 
 const renderedContent = computed(() => {
   if (!store.selectedArticle?.content) return ''
-  return DOMPurify.sanitize(marked(store.selectedArticle.content, { breaks: true }))
+  return renderMarkdown(store.selectedArticle.content)
 })
 
 function formatDate(d) {
   if (!d) return ''
-  return new Date(d).toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' })
+  return parseInstant(d).toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' })
 }
 
 async function handleDelete() {

@@ -207,3 +207,11 @@ Markdown 格式文章，支持全文搜索。
 | scopes | Text | Not Null | `"[]"` | JSON 格式的权限列表，如 `["news:create"]` |
 | is_active | Boolean | — | True | 是否启用 |
 | created_at | DateTime | — | now() | 创建时间（UTC） |
+
+## 历史打卡时间列
+
+`tick_tasks.created_at`、`tick_tasks.updated_at`、`tick_logs.created_at` 在现有迁移中允许 NULL；模型和接口保留该语义。缺失值表示历史时间未知，不用当前时间补造。新记录仍由应用填充时间。
+
+## 时间存储（Plan 024）
+
+时间点列仍使用不带时区的 SQL timestamp，应用通过 UTCDateTime 在写入时归一化为 UTC、读取时恢复 UTC 标记。浏览器按本地时区显示。纯日期和 period_key 不转换。此次不平移已有数据；部署前须核验历史时间来源及 PostgreSQL 会话时区，混存数据先输出修复映射。

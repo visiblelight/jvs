@@ -4,6 +4,7 @@ from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, UniqueConstr
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
+from app.core.datetime import UTCDateTime
 
 
 class NewsCategory(Base):
@@ -15,7 +16,7 @@ class NewsCategory(Base):
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     sort_order: Mapped[int] = mapped_column(Integer, default=0)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime, default=lambda: datetime.now(timezone.utc)
+        UTCDateTime, default=lambda: datetime.now(timezone.utc)
     )
 
 
@@ -27,7 +28,7 @@ class NewsSource(Base):
     user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime, default=lambda: datetime.now(timezone.utc)
+        UTCDateTime, default=lambda: datetime.now(timezone.utc)
     )
 
 
@@ -42,13 +43,13 @@ class NewsArticle(Base):
     source_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
     source_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("news_sources.id", ondelete="SET NULL"), nullable=True)
     author: Mapped[str | None] = mapped_column(String(100), nullable=True)
-    published_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True, index=True)
+    published_at: Mapped[datetime | None] = mapped_column(UTCDateTime, nullable=True, index=True)
     category_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("news_categories.id", ondelete="SET NULL"), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime, default=lambda: datetime.now(timezone.utc)
+        UTCDateTime, default=lambda: datetime.now(timezone.utc)
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime,
+        UTCDateTime,
         default=lambda: datetime.now(timezone.utc),
         onupdate=lambda: datetime.now(timezone.utc),
     )
