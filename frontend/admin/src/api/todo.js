@@ -14,9 +14,9 @@ export const deleteTag = (id) => request.delete(`/admin/todo/tags/${id}`)
 
 // 事项
 export const getItems = (params) => request.get('/admin/todo/items', { params })
-export const getItem = (id) => request.get(`/admin/todo/items/${id}`)
-export const createItem = (data) => request.post('/admin/todo/items', data)
-export const updateItem = (id, data) => request.put(`/admin/todo/items/${id}`, data)
+export const getItem = (id, config) => request.get(`/admin/todo/items/${id}`, config)
+export const createItem = (data, config) => request.post('/admin/todo/items', data, config)
+export const updateItem = (id, data, config) => request.put(`/admin/todo/items/${id}`, data, config)
 export const deleteItem = (id) => request.delete(`/admin/todo/items/${id}`)
 export const updateItemStatus = (id, status) => request.patch(`/admin/todo/items/${id}/status`, { status })
 export const restoreItem = (id) => request.post(`/admin/todo/items/${id}/restore`)

@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { flushEditors, authFailureRedirect } from '@/utils/editorProtection.mjs'
 
 const routes = [
   { path: '/login', name: 'login', component: () => import('@/views/LoginView.vue'), meta: { guest: true } },
@@ -23,25 +24,28 @@ const router = createRouter({
   routes,
 })
 
-router.beforeEach(async (to, from, next) => {
+router.beforeEach(async (to) => {
+  if (!flushEditors()) return false
   const token = localStorage.getItem('token')
-  if (to.meta.guest) {
-    token ? next('/home') : next()
-    return
-  }
-  if (!token) {
-    next('/login')
-    return
-  }
+  if (to.meta.guest) return token ? '/home' : true
+  const login = { path: '/login', query: { redirect: to.fullPath } }
+  if (!token) return login
   const authStore = useAuthStore()
+  if (authStore.token !== token) {
+    authStore.token = token
+    authStore.user = null
+  }
   if (!authStore.user) {
-    try { await authStore.fetchUser() } catch { next('/login'); return }
+    try { await authStore.fetchUser({ skipAuthRedirect: true }) }
+    catch (error) {
+      const target = authFailureRedirect(token, localStorage.getItem('token'), to.fullPath, error.response?.status)
+      if (target) authStore.clearSession()
+      return target
+    }
   }
-  if (to.meta.module && !authStore.canAccess(to.meta.module)) {
-    next('/home')
-    return
-  }
-  next()
+  if (to.meta.superuser && !authStore.isSuperuser) return '/home'
+  if (to.meta.module && !authStore.canAccess(to.meta.module)) return '/home'
+  return true
 })
 
 export default router

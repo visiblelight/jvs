@@ -1,10 +1,10 @@
 <template>
   <Teleport to="body">
-    <div class="drawer-overlay" @click.self="$emit('close')">
+    <div class="drawer-overlay" @click.self="close">
       <div class="drawer-panel" @click.stop>
         <div class="drawer-head">
           <h3>{{ isEdit ? '编辑事项' : '新建事项' }}</h3>
-          <button class="close-btn active-scale" @click="$emit('close')">
+          <button class="close-btn active-scale" @click="close">
             <svg viewBox="0 0 16 16" fill="currentColor" width="20" height="20">
               <path d="M3.72 3.72a.75.75 0 011.06 0L8 6.94l3.22-3.22a.75.75 0 111.06 1.06L9.06 8l3.22 3.22a.75.75 0 11-1.06 1.06L8 9.06l-3.22 3.22a.75.75 0 01-1.06-1.06L6.94 8 3.72 4.78a.75.75 0 010-1.06z"/>
             </svg>
@@ -12,6 +12,8 @@
         </div>
 
         <form class="drawer-body" @submit.prevent="handleSubmit">
+          <TodoDraftStatus :draft="draft" :copied="session.copied" :busy="saving" @discard="discard" />
+          <fieldset class="draft-fields" :disabled="saving || draft.completed.value">
           <div class="field title-field">
             <input v-model="form.title" type="text" placeholder="事项标题..." required class="large-input" />
           </div>
@@ -108,11 +110,11 @@
 
           <div v-if="isEdit" class="field-section">
             <label>当前状态</label>
-            <div v-if="props.editItem.status === 'archived'" class="status-readonly">
+            <div v-if="session.item?.status === 'archived'" class="status-readonly">
               <span class="status-badge status-badge--archived">已归档</span>
               <span class="field-hint">归档状态请在详情面板操作</span>
             </div>
-            <div v-else-if="props.editItem.status === 'completed'" class="segmented-control">
+            <div v-else-if="session.item?.status === 'completed'" class="segmented-control">
               <button type="button" class="segment-btn active-scale" :class="{active: form.status === 'pending'}" @click="form.status='pending'">未完成</button>
               <button type="button" class="segment-btn active-scale" :class="{active: form.status === 'completed'}" @click="form.status='completed'">已完成</button>
             </div>
@@ -123,11 +125,14 @@
             </div>
           </div>
 
+          </fieldset>
+          <p v-if="error" class="form-error" role="alert">{{ error }}</p>
+          <button v-if="error && isEdit" type="button" :disabled="saving" @click="saveAsNew">另存为新事项</button>
         </form>
 
         <div class="drawer-foot">
-          <button type="button" class="btn-secondary active-scale" @click="$emit('close')">取消</button>
-          <button type="submit" class="btn-primary active-scale" @click="handleSubmit">{{ isEdit ? '保存更改' : '创建事项' }}</button>
+          <button type="button" class="btn-secondary active-scale" @click="close" :disabled="saving">关闭</button>
+          <button type="submit" class="btn-primary active-scale" @click="handleSubmit" :disabled="saving || draft.completed.value">{{ saving ? '保存中…' : isEdit ? '保存更改' : '创建事项' }}</button>
         </div>
       </div>
     </div>
@@ -135,58 +140,23 @@
 </template>
 
 <script setup>
-import { formatLocalDatetime, localInputToISO } from '@/utils/datetime.mjs'
-import { computed, reactive, ref } from 'vue'
+import { computed, ref } from 'vue'
 import { useTodoStore } from '@/stores/todo'
-import { createItem, updateItem } from '@/api/todo'
 import { useImagePaste } from '@/composables/useImagePaste'
+import { useTodoEditor } from '@/composables/useTodoEditor'
+import TodoDraftStatus from '@/components/TodoDraftStatus.vue'
 
-const descEl = ref(null)
-const { handlePaste } = useImagePaste({
-  module: 'todo',
-  getValue: () => form.description,
-  setValue: (val) => { form.description = val },
-  getEl: () => descEl.value,
-})
-
-const props = defineProps({
-  editItem: { type: Object, default: null },
-})
+const props = defineProps({ session: { type: Object, required: true } })
 const emit = defineEmits(['close', 'saved'])
 const store = useTodoStore()
-const isEdit = computed(() => !!props.editItem)
-
+const { form, hasScheduled, isEdit, saving, error, draft, toggleScheduled, close, discard, saveAsNew, handleSubmit } = useTodoEditor(props.session, emit)
+const descEl = ref(null)
+const { handlePaste } = useImagePaste({
+  module: 'todo', getValue: () => form.description,
+  setValue: val => { form.description = val }, getEl: () => descEl.value,
+})
 const priorities = ['极低', '低', '中等', '高', '极高']
 const importances = ['不重要', '一般', '偏重要', '非常重要', '极其重要']
-
-
-
-// 是否指定执行时间（有 scheduled_at 则默认开启）
-const hasScheduled = ref(!!props.editItem?.scheduled_at)
-
-const form = reactive({
-  title: props.editItem?.title || '',
-  description: props.editItem?.description || '',
-  priority: props.editItem?.priority || 3,
-  importance: props.editItem?.importance || 3,
-  category_id: props.editItem?.category_id || null,
-  due_date: props.editItem?.scheduled_at ? '' : formatLocalDatetime(props.editItem?.due_date) || '',
-  scheduled_at: formatLocalDatetime(props.editItem?.scheduled_at) || '',
-  tag_ids: props.editItem?.tags?.map((t) => t.id) || [],
-  status: props.editItem?.status || 'pending',
-})
-
-function toggleScheduled() {
-  hasScheduled.value = !hasScheduled.value
-  if (!hasScheduled.value) {
-    form.scheduled_at = ''
-  } else {
-    // 开启时用已有截止日期作为执行时间初始值
-    form.scheduled_at = form.due_date || ''
-    form.due_date = ''
-  }
-}
-
 const flatCategories = computed(() => {
   const result = []
   function walk(cats, depth) {
@@ -198,30 +168,12 @@ const flatCategories = computed(() => {
   walk(store.categories, 0)
   return result
 })
-
-async function handleSubmit() {
-  const scheduledIso = hasScheduled.value && form.scheduled_at ? localInputToISO(form.scheduled_at) : null
-  const payload = {
-    title: form.title,
-    description: form.description || null,
-    priority: form.priority,
-    importance: form.importance,
-    category_id: form.category_id || null,
-    scheduled_at: scheduledIso,
-    due_date: hasScheduled.value ? scheduledIso : (form.due_date ? localInputToISO(form.due_date) : null),
-    tag_ids: form.tag_ids,
-  }
-  if (isEdit.value) {
-    payload.status = form.status
-    await updateItem(props.editItem.id, payload)
-  } else {
-    await createItem(payload)
-  }
-  emit('saved')
-}
 </script>
 
 <style scoped>
+.draft-fields { display: flex; flex-direction: column; gap: 24px; padding: 0; margin: 0; border: 0; min-width: 0; }
+.form-error { color: var(--color-danger); font-size: 13px; }
+button:disabled { opacity: .5; cursor: not-allowed; }
 .drawer-head {
   display: flex;
   align-items: center;

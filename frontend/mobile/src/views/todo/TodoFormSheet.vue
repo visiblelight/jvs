@@ -1,7 +1,9 @@
 <template>
-  <BottomSheet :modelValue="modelValue" @update:modelValue="$emit('update:modelValue', $event)"
-    :title="item ? '编辑事项' : '新建事项'" maxHeight="88vh">
+  <BottomSheet :modelValue="true" @update:modelValue="close"
+    :title="isEdit ? '编辑事项' : '新建事项'" maxHeight="88vh">
     <div class="form">
+      <TodoDraftStatus :draft="draft" :copied="session.copied" :busy="saving" @discard="discard" />
+      <fieldset class="draft-fields" :disabled="saving || draft.completed.value">
       <div class="form-group">
         <label>标题 *</label>
         <input v-model="form.title" type="text" placeholder="输入事项标题" maxlength="100" />
@@ -76,39 +78,27 @@
         </div>
       </div>
 
-      <div v-if="error" class="form-error">{{ error }}</div>
+      </fieldset>
+      <button v-if="error && isEdit" type="button" :disabled="saving" @click="saveAsNew">另存为新事项</button>
+      <div v-if="error" role="alert" class="form-error">{{ error }}</div>
 
-      <button class="submit-btn" @click="handleSubmit" :disabled="!form.title.trim() || saving">
-        {{ saving ? '保存中…' : (item ? '保存修改' : '创建事项') }}
+      <button class="submit-btn" @click="handleSubmit" :disabled="!form.title.trim() || saving || draft.completed.value">
+        {{ saving ? '保存中…' : (isEdit ? '保存修改' : '创建事项') }}
       </button>
     </div>
   </BottomSheet>
 </template>
 
 <script setup>
-import { formatLocalDatetime, localInputToISO } from '@/utils/datetime.mjs'
-import { computed, reactive, ref, watch } from 'vue'
+import { computed } from 'vue'
 import BottomSheet from '@/components/BottomSheet.vue'
+import TodoDraftStatus from '@/components/TodoDraftStatus.vue'
 import { useTodoStore } from '@/stores/todo'
-import * as api from '@/api/todo'
-
-const props = defineProps({
-  modelValue: Boolean,
-  item: { type: Object, default: null },
-})
-const emit = defineEmits(['update:modelValue', 'saved'])
-
+import { useTodoEditor } from '@/composables/useTodoEditor'
+const props = defineProps({ session: { type: Object, required: true } })
+const emit = defineEmits(['close', 'saved'])
 const todoStore = useTodoStore()
-const saving = ref(false)
-const error = ref('')
-const hasScheduled = ref(false)
-
-
-
-const form = reactive({
-  title: '', description: '', priority: 3, importance: 3,
-  category_id: null, due_date: '', scheduled_at: '', tag_ids: [],
-})
+const { form, hasScheduled, isEdit, saving, error, draft, toggleScheduled, close, discard, saveAsNew, handleSubmit } = useTodoEditor(props.session, emit)
 
 const flatCategories = computed(() => {
   const result = []
@@ -122,71 +112,10 @@ const flatCategories = computed(() => {
   return result
 })
 
-function toggleScheduled() {
-  hasScheduled.value = !hasScheduled.value
-  if (!hasScheduled.value) {
-    form.scheduled_at = ''
-  } else {
-    form.scheduled_at = form.due_date || ''
-    form.due_date = ''
-  }
-}
-
-watch(() => props.item, (val) => {
-  if (val) {
-    form.title = val.title || ''
-    form.description = val.description || ''
-    form.priority = val.priority || 3
-    form.importance = val.importance || 3
-    form.category_id = val.category_id || null
-    form.due_date = val.scheduled_at ? '' : formatLocalDatetime(val.due_date)
-    form.scheduled_at = formatLocalDatetime(val.scheduled_at)
-    form.tag_ids = val.tags?.map(t => t.id) || []
-    hasScheduled.value = !!val.scheduled_at
-  } else {
-    form.title = ''
-    form.description = ''
-    form.priority = 3
-    form.importance = 3
-    form.category_id = null
-    form.due_date = ''
-    form.scheduled_at = ''
-    form.tag_ids = []
-    hasScheduled.value = false
-  }
-}, { immediate: true })
-
-async function handleSubmit() {
-  error.value = ''
-  saving.value = true
-  try {
-    const scheduledIso = hasScheduled.value && form.scheduled_at ? localInputToISO(form.scheduled_at) : null
-    const payload = {
-      title: form.title.trim(),
-      description: form.description || null,
-      priority: form.priority,
-      importance: form.importance,
-      category_id: form.category_id || null,
-      scheduled_at: scheduledIso,
-      due_date: hasScheduled.value ? scheduledIso : (form.due_date ? localInputToISO(form.due_date) : null),
-      tag_ids: form.tag_ids,
-    }
-    if (props.item) {
-      await api.updateItem(props.item.id, payload)
-    } else {
-      await api.createItem(payload)
-    }
-    emit('saved')
-    emit('update:modelValue', false)
-  } catch (e) {
-    error.value = e.response?.data?.detail || '保存失败'
-  } finally {
-    saving.value = false
-  }
-}
 </script>
 
 <style scoped>
+.draft-fields { display: flex; flex-direction: column; gap: 16px; padding: 0; margin: 0; border: 0; min-width: 0; }
 .form { display: flex; flex-direction: column; gap: 16px; }
 
 .form-group { display: flex; flex-direction: column; gap: 6px; }

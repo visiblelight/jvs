@@ -4,8 +4,8 @@ export function login(username, password) {
   return request.post('/admin/auth/login', { username, password })
 }
 
-export function getMe() {
-  return request.get('/admin/auth/me')
+export function getMe(config) {
+  return request.get('/admin/auth/me', config)
 }
 
 export function uploadAvatar(file) {

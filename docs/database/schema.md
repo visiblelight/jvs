@@ -215,3 +215,22 @@ Markdown 格式文章，支持全文搜索。
 ## 时间存储（Plan 024）
 
 时间点列仍使用不带时区的 SQL timestamp，应用通过 UTCDateTime 在写入时归一化为 UTC、读取时恢复 UTC 标记。浏览器按本地时区显示。纯日期和 period_key 不转换。此次不平移已有数据；部署前须核验历史时间来源及 PostgreSQL 会话时区，混存数据先输出修复映射。
+
+## 浏览器 ToDo 草稿结构（Plan 025）
+
+本机草稿不进入数据库，本次无需数据库迁移。每份草稿使用独立 localStorage 键：
+
+`jvs:todo-draft:v1:{encodeURIComponent(apiBaseURL + ':' + appName)}:{userId}:{draftId}`
+
+其中 `appName` 为 `admin` 或 `mobile`，浏览器站点隔离之外再按后端地址、应用和账号隔离。值为 JSON：
+
+| 字段 | 含义 |
+| --- | --- |
+| version | 当前结构版本 1 |
+| id / userId | 草稿 UUID、所属账号 ID |
+| itemId | 编辑目标事项 ID；新建为 null |
+| baseUpdatedAt | 编辑开始时服务端的 updated_at；新建为 null |
+| savedAt | 最近成功写入本机的 ISO 8601 时间 |
+| form | title、description、priority、importance、category_id、tag_ids、status、due_date、scheduled_at、hasScheduled |
+
+`due_date`、`scheduled_at` 保存编辑框里的本地时间字符串，提交 API 时才转换为带时区时间；`hasScheduled` 单独记录开关。损坏或未知版本的记录保留原值并报告，不自动删除。正文不放入 URL 或日志。

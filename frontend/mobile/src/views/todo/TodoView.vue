@@ -22,6 +22,7 @@
       >{{ tab.label }}</button>
     </div>
 
+    <TodoDraftList :drafts="drafts" :error="draftError" @resume="openEditor(null, $event)" />
     <div class="list-area" ref="listEl">
       <div v-if="store.loading && !store.items.length" class="list-loading">
         <div class="spinner" />
@@ -116,13 +117,15 @@
     </BottomSheet>
 
     <!-- Form Sheet -->
-    <TodoFormSheet v-model="showForm" :item="editItem" @saved="onSaved" />
+    <TodoFormSheet v-if="editor" :key="editor.record.id" :session="editor" @close="closeEditor" @saved="onSaved" />
   </div>
 </template>
 
 <script setup>
 import { parseInstant } from '@/utils/datetime.mjs'
 import { ref, computed, onMounted } from 'vue'
+import TodoDraftList from '@/components/TodoDraftList.vue'
+import { useTodoDrafts } from '@/composables/useTodoDrafts'
 import { useTodoStore } from '@/stores/todo'
 import * as api from '@/api/todo'
 import PageHeader from '@/components/PageHeader.vue'
@@ -131,8 +134,7 @@ import TodoFormSheet from './TodoFormSheet.vue'
 
 const store = useTodoStore()
 const showFilter = ref(false)
-const showForm = ref(false)
-const editItem = ref(null)
+const { drafts, draftError, editor, openEditor, closeEditor } = useTodoDrafts('mobile')
 
 const statusTabs = [
   { label: '全部', value: null },
@@ -152,10 +154,9 @@ const hasFilter = computed(() =>
   store.filters.priority !== null || store.filters.category_id !== null
 )
 
-function openCreate() { editItem.value = null; showForm.value = true }
-function openEdit(item) { editItem.value = item; showForm.value = true }
-
-function onSaved() { store.fetchItems() }
+function openCreate() { openEditor() }
+function openEdit(item) { openEditor(item) }
+async function onSaved() { await closeEditor(); store.fetchItems() }
 
 async function toggleDone(item) {
   await api.updateItem(item.id, { status: item.status === 'completed' ? 'pending' : 'completed' })

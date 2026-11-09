@@ -18,15 +18,17 @@
           新建
         </button>
       </div>
+      <TodoDraftList :drafts="drafts" :error="draftError" @resume="openEditor(null, $event)" />
       <TodoList v-if="viewMode === 'list'" @create="openCreate" />
       <TodoCalendarView v-else />
     </div>
     <TodoDetail @edit="openEdit" />
 
     <TodoFormDrawer
-      v-if="showForm"
-      :edit-item="editItem"
-      @close="showForm = false"
+      v-if="editor"
+      :key="editor.record.id"
+      :session="editor"
+      @close="closeEditor"
       @saved="onSaved"
     />
     
@@ -41,6 +43,8 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
+import TodoDraftList from '@/components/TodoDraftList.vue'
+import { useTodoDrafts } from '@/composables/useTodoDrafts'
 import { useTodoStore } from '@/stores/todo'
 import TodoSidebar from './TodoSidebar.vue'
 import TodoList from './TodoList.vue'
@@ -54,28 +58,18 @@ import TodoArchiveModal from './TodoArchiveModal.vue'
 const store = useTodoStore()
 
 const viewMode = ref('list')
-const showForm = ref(false)
+const { drafts, draftError, editor, openEditor, closeEditor } = useTodoDrafts('admin')
 const showSearch = ref(false)
 const showTrash = ref(false)
 const showArchive = ref(false)
-const editItem = ref(null)
 
-function openCreate() {
-  editItem.value = null
-  showForm.value = true
-}
-
-function openEdit(item) {
-  editItem.value = item
-  showForm.value = true
-}
-
-function onSaved() {
-  showForm.value = false
+function openCreate() { openEditor() }
+function openEdit(item) { openEditor(item) }
+async function onSaved() {
+  const itemId = editor.value?.record.itemId
+  await closeEditor()
   store.fetchItems()
-  if (editItem.value) {
-    store.selectItem(editItem.value.id)
-  }
+  if (itemId) store.selectItem(itemId)
 }
 
 function onSearchSelect(item) {

@@ -12,6 +12,8 @@
     </div>
 
     <div class="login-card">
+      <p v-if="route.query.expired" class="recovery-note">登录已过期，请重新登录继续。已保存的事项草稿会在登录原账号后恢复。</p>
+      <p v-else-if="route.query.retry" class="recovery-note">暂时无法确认登录状态，请检查网络后重新登录。已保存的草稿仍保留在本机。</p>
       <div class="form-group">
         <label>用户名</label>
         <input
@@ -50,8 +52,11 @@
 <script setup>
 import { reactive, ref, computed } from 'vue'
 import { useAuthStore } from '@/stores/auth'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 
+import { safeReturnPath } from '@/utils/editorProtection.mjs'
+
+const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
 
@@ -70,7 +75,7 @@ async function handleLogin() {
   loading.value = true
   try {
     await authStore.login(form.username, form.password)
-    router.push('/home')
+    window.location.replace(router.resolve(safeReturnPath(route.query.redirect, '/home')).href)
   } catch (e) {
     error.value = e.response?.data?.detail || '登录失败，请检查用户名和密码'
   } finally {
@@ -80,6 +85,7 @@ async function handleLogin() {
 </script>
 
 <style scoped>
+.recovery-note { font-size: 13px; line-height: 1.7; margin: 0 0 20px; color: var(--color-text-secondary); }
 .login-page {
   min-height: 100%;
   background: var(--color-bg);

@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { flushEditors, authFailureRedirect } from '@/utils/editorProtection.mjs'
 import LoginView from '@/views/LoginView.vue'
 import AdminLayout from '@/layouts/AdminLayout.vue'
 import DashboardView from '@/views/DashboardView.vue'
@@ -67,44 +68,28 @@ const router = createRouter({
   routes,
 })
 
-router.beforeEach(async (to, from, next) => {
+router.beforeEach(async (to) => {
+  if (!flushEditors()) return false
   const token = localStorage.getItem('token')
-
-  if (to.meta.guest) {
-    if (token) {
-      next('/dashboard')
-    } else {
-      next()
-    }
-    return
-  }
-
-  if (!token) {
-    next('/login')
-    return
-  }
-
+  if (to.meta.guest) return token ? '/dashboard' : true
+  const login = { path: '/login', query: { redirect: to.fullPath } }
+  if (!token) return login
   const authStore = useAuthStore()
+  if (authStore.token !== token) {
+    authStore.token = token
+    authStore.user = null
+  }
   if (!authStore.user) {
-    try {
-      await authStore.fetchUser()
-    } catch {
-      next('/login')
-      return
+    try { await authStore.fetchUser({ skipAuthRedirect: true }) }
+    catch (error) {
+      const target = authFailureRedirect(token, localStorage.getItem('token'), to.fullPath, error.response?.status)
+      if (target) authStore.clearSession()
+      return target
     }
   }
-
-  if (to.meta.superuser && !authStore.isSuperuser) {
-    next('/dashboard')
-    return
-  }
-
-  if (to.meta.module && !authStore.canAccess(to.meta.module)) {
-    next('/dashboard')
-    return
-  }
-
-  next()
+  if (to.meta.superuser && !authStore.isSuperuser) return '/dashboard'
+  if (to.meta.module && !authStore.canAccess(to.meta.module)) return '/dashboard'
+  return true
 })
 
 export default router

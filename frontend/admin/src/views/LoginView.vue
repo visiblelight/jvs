@@ -37,6 +37,8 @@
             <p class="form-subtitle">请登录以继续</p>
           </div>
 
+          <p v-if="route.query.expired" class="recovery-note">登录已过期，请重新登录继续。已保存的事项草稿会在登录原账号后恢复。</p>
+      <p v-else-if="route.query.retry" class="recovery-note">暂时无法确认登录状态，请检查网络后重新登录。已保存的草稿仍保留在本机。</p>
           <form @submit.prevent="handleLogin">
             <div class="field" :class="{ 'field--focused': focusedField === 'username', 'field--filled': username }">
               <label>账号</label>
@@ -84,9 +86,12 @@
 
 <script setup>
 import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 
+import { safeReturnPath } from '@/utils/editorProtection.mjs'
+
+const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
 
@@ -105,7 +110,7 @@ async function handleLogin() {
   loading.value = true
   try {
     await authStore.login(username.value, password.value)
-    router.push('/dashboard')
+    window.location.replace(router.resolve(safeReturnPath(route.query.redirect, '/dashboard')).href)
   } catch (e) {
     errorMsg.value = e.response?.data?.detail || '登录失败，请重试'
   } finally {
@@ -115,6 +120,7 @@ async function handleLogin() {
 </script>
 
 <style scoped>
+.recovery-note { font-size: 13px; line-height: 1.7; margin: 0 0 20px; color: var(--color-text-secondary); }
 .login-page {
   min-height: 100vh;
   display: flex;
