@@ -21,6 +21,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+@app.middleware("http")
+async def no_store_auth(request, call_next):
+    response = await call_next(request)
+    if request.url.path.startswith("/api/admin/auth/"):
+        response.headers["Cache-Control"] = "no-store"
+    return response
+
+
 app.include_router(admin_router)
 app.include_router(open_router)
 

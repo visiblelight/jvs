@@ -1,7 +1,8 @@
 import request from './request'
+import { session } from './session'
 
 export function login(username, password) {
-  return request.post('/admin/auth/login', { username, password })
+  return session.login(username, password)
 }
 
 export function getMe(config) {

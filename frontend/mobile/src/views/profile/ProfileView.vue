@@ -112,6 +112,7 @@ async function handleChangePw() {
   try {
     await changePassword({ old_password: pw.old_password, new_password: pw.new_password })
     pwSuccess.value = '密码修改成功'
+    await authStore.logout({ localOnly: true, reason: 'password-changed' })
     pw.old_password = ''; pw.new_password = ''; pw.confirm = ''
   } catch (e) {
     pwError.value = e.response?.data?.detail || '修改失败'

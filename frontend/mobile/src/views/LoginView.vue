@@ -14,6 +14,7 @@
     <div class="login-card">
       <p v-if="route.query.expired" class="recovery-note">登录已过期，请重新登录继续。已保存的事项草稿会在登录原账号后恢复。</p>
       <p v-else-if="route.query.retry" class="recovery-note">暂时无法确认登录状态，请检查网络后重新登录。已保存的草稿仍保留在本机。</p>
+      <p v-else-if="route.query.reason === 'password-changed'" class="recovery-note">密码已更新，请使用新密码重新登录。</p>
       <div class="form-group">
         <label>用户名</label>
         <input

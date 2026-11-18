@@ -147,6 +147,7 @@ async function handleChangePassword() {
   try {
     await request.put('/admin/auth/password', pwForm)
     pwSuccess.value = '密码修改成功'
+    await authStore.logout({ localOnly: true, reason: 'password-changed' })
     pwForm.old_password = ''
     pwForm.new_password = ''
     pwConfirm.value = ''

@@ -10,11 +10,16 @@ ALGORITHM = "HS256"
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
-def create_access_token(subject: str, expires_delta: Optional[timedelta] = None) -> str:
-    expire = datetime.now(timezone.utc) + (
+def create_access_token(subject: str, expires_delta: Optional[timedelta] = None, *,
+                        session_id: str | None = None, token_version: int = 0,
+                        expires_at: datetime | None = None) -> str:
+    now = datetime.now(timezone.utc)
+    expire = expires_at or now + (
         expires_delta or timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     )
-    payload = {"sub": subject, "exp": expire}
+    payload = {"sub": subject, "exp": expire, "iat": now, "ver": token_version}
+    if session_id is not None:
+        payload["sid"] = session_id
     return jwt.encode(payload, settings.SECRET_KEY, algorithm=ALGORITHM)
 
 

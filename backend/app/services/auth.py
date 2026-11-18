@@ -7,7 +7,7 @@ from app.models.user import User
 
 
 def authenticate(db: Session, username: str, password: str) -> Optional[User]:
-    user = db.query(User).filter(User.username == username).first()
+    user = db.query(User).filter(User.username == username).populate_existing().with_for_update().first()
     if not user:
         return None
     if not verify_password(password, user.hashed_password):

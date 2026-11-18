@@ -29,3 +29,8 @@ class UserInfo(BaseModel):
 class PasswordChange(BaseModel):
     old_password: str
     new_password: str = Field(..., min_length=6)
+
+
+class RefreshRequest(BaseModel):
+    session_id: str | None = Field(default=None, max_length=36)
+    user_id: int | None = Field(default=None, gt=0)

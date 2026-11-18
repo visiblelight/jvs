@@ -22,7 +22,7 @@ python -m pytest tests/ -q
 
 - `TEST_DATABASE_URL`：运行完整 API 测试，测试前建表、结束清表；仅允许名字以 `_test` 结尾的专用空库。
 - `TEST_POSTGRES_URL`：提供迁移、会话时区、历史周期映射及并发测试的管理连接；这些用例另建随机临时数据库，结束后清理。不要填写生产连接。
-- 没有 PostgreSQL 时，SQLite 的并发重复插入用例明确跳过；CI 会实际运行 PostgreSQL 对应用例。
+- 没有 PostgreSQL 时，SQLite 的并发重复插入和并发会话续期用例明确跳过；CI 会实际运行 PostgreSQL 对应用例。会话并发用例在 TEST_DATABASE_URL 中创建并清理独立测试账号，使用独立连接验证行锁。
 - `python -m pytest tests/test_migrations.py -q` 独立进程验证 Alembic，防止主应用导入掩盖模型漏注册。
 
 两个前端目录分别运行 `npm test`、`npm run build`。时间行为测试覆盖 UTC、上海和纽约时区、夏令时、表单往返、业务午夜刷新和内部图片 origin。
@@ -55,3 +55,11 @@ pip-compile --generate-hashes --no-emit-index-url --no-emit-trusted-host require
 编辑旧稿时读取并比较服务端 `updated_at`，发现冲突后阻止覆盖。这是客户端的提交前检查，尚不提供服务器原子版本条件更新，因此不能消除“检查与写入之间”极短窗口内的并发修改。请求超时保留草稿、不自动重试；当前创建接口没有幂等键，应提示先核对列表再重试。
 
 本机持久化只是同浏览器的恢复能力，不应承诺强制结束进程、清空站点存储后仍能恢复；需要跨设备恢复时再引入服务端草稿协议。尚在上传的图片二进制不保存在草稿中，已完成的 Markdown 图片链接作为正文保存。
+
+## 自动续期维护（Plan 026）
+
+两端的 `utils/session.mjs` 管理续期、同源窗口锁和登录代次；`utils/sessionRequests.mjs` 负责业务请求前检查及 401 单次重试，`api/session.js` 使用独立 Axios 实例，避免刷新递归。修改公共行为时同步两端实现和测试；不要把网络故障当成认证失败，也不要重试结果未知的写入。草稿账号核对须在续期前后执行。
+
+本地 HTTP 开发在后端 `.env` 显式设置 `REFRESH_COOKIE_SECURE=false`，通过前端代理同源访问；生产 HTTPS 保持 true。默认 `REFRESH_IDLE_DAYS=30`、`REFRESH_ABSOLUTE_DAYS=90`、`REFRESH_COOKIE_SAMESITE=lax`。idle 必须不大于 absolute；SameSite=none 必须 Secure=true。
+
+`tests/test_sessions.py` 覆盖 Cookie、期限、轮换重放、撤销、Origin、账号切换、旧 JWT 和 PostgreSQL 并发续期；前端 `tests/session.test.mjs` 验证并发合并、单次重试、离线／超时／5xx、旧响应、跨窗口与草稿账号保护。浏览器验收使用隔离库、测试账号和临时的 1 分钟访问令牌，真实等待到期后提交长草稿；同时模拟刷新 503 和业务 401，检查请求顺序与仅一次入库。不得通过生产故障注入完成验证，不记录原始令牌或 Cookie。

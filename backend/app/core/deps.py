@@ -10,6 +10,8 @@ from app.core.database import SessionLocal
 from app.core.security import ALGORITHM
 from app.models.access_key import AccessKey
 from app.models.user import User, UserModule
+from app.models.auth_session import AuthSession
+from app.services.sessions import active
 
 security_scheme = HTTPBearer()
 
@@ -26,20 +28,24 @@ def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security_scheme),
     db=Depends(get_db),
 ) -> User:
-    token = credentials.credentials
     try:
-        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[ALGORITHM])
-        user_id: str = payload.get("sub")
-        if user_id is None:
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="无效的认证凭据")
-    except JWTError:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="无效的认证凭据")
-
-    user = db.query(User).filter(User.id == int(user_id)).first()
-    if user is None:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="用户不存在")
+        payload = jwt.decode(credentials.credentials, settings.SECRET_KEY, algorithms=[ALGORITHM],
+                             options={"require_exp": True, "require_sub": True})
+        user_id = int(payload["sub"])
+        if user_id <= 0:
+            raise ValueError()
+    except (JWTError, ValueError, TypeError, KeyError):
+        raise HTTPException(status_code=401, detail="无效的认证凭据")
+    user = db.query(User).filter(User.id == user_id).first()
+    if user is None or payload.get("ver", 0) != user.token_version:
+        raise HTTPException(status_code=401, detail="登录已失效，请重新登录")
     if not user.is_active:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="用户已被禁用")
+        raise HTTPException(status_code=403, detail="用户已被禁用")
+    sid = payload.get("sid")
+    if sid is not None:
+        session = db.get(AuthSession, sid) if isinstance(sid, str) else None
+        if not session or session.user_id != user.id or not active(session):
+            raise HTTPException(status_code=401, detail="登录已失效，请重新登录")
     return user
 
 

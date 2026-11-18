@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from app.core.deps import get_current_user, get_db, require_superuser
 from app.core.modules import MODULE_KEYS, get_modules_sorted
 from app.core.security import hash_password
+from app.services.sessions import revoke_user_sessions
 from app.models.user import User, UserModule
 from app.schemas.user import (
     ModuleItem,
@@ -104,7 +105,7 @@ def update_user(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_superuser),
 ):
-    user = db.query(User).filter(User.id == user_id).first()
+    user = db.query(User).filter(User.id == user_id).populate_existing().with_for_update().first()
     if not user:
         raise HTTPException(status_code=404, detail="用户不存在")
 
@@ -142,6 +143,8 @@ def update_user(
     if "password" in data and data["password"]:
         user.hashed_password = hash_password(data["password"])
 
+    if ("password" in data and data["password"]) or data.get("is_active") is False:
+        revoke_user_sessions(db, user)
     db.commit()
     db.refresh(user)
     return _to_detail(user)

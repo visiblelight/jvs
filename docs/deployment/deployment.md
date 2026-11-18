@@ -24,3 +24,19 @@
 - 镜像不含 `.env`、开发库、上传数据、虚拟环境或缓存。
 
 Plan 024 涉及的历史打卡周期切换必须先完成 plan024-upgrade.md 的核验，不随应用启动自动执行。
+
+## 自动续期配置与升级（Plan 026）
+
+| 后端配置 | 默认值 | 说明 |
+| --- | --- | --- |
+| ACCESS_TOKEN_EXPIRE_MINUTES | 1440 | 单次访问 JWT 的有效期，自动续期后无须每天输入密码 |
+| REFRESH_IDLE_DAYS | 30 | 连续未成功续期的期限 |
+| REFRESH_ABSOLUTE_DAYS | 90 | 从首次登录起的最长会话期限 |
+| REFRESH_COOKIE_SECURE | true | 生产必须使用 HTTPS；false 仅供本地 HTTP 验收 |
+| REFRESH_COOKIE_SAMESITE | lax | 同站部署默认值；none 必须同时 Secure=true |
+
+以上变量通过 Compose 传给后端，无须为了续期增加访问 JWT 的有效期。`CORS_ORIGINS` 必须精确包含实际前端 origin，不使用通配符；续期、退出带 credentials 和 X-JVS-Session 请求头。前端与 API 若处于不同站点，需显式设置 SameSite=none，但第三方 Cookie 拦截仍可能影响续期，优先同站部署。Cookie 仅属于 API 主机、路径 /api/admin/auth。
+
+发布前备份并验证 PostgreSQL 压缩备份，确认服务器跟踪文件干净、目标提交和现网配置；迁移 c026a1b2c3d4 仅追加 auth_sessions 与 users.token_version，不改写业务记录。main 自动部署先测试再发布，随后核对迁移头、容器健康、两端静态资源和刷新接口的 401/403/no-store。旧登录在原有效期内仍可使用，用户需重新登录一次建立续期 Cookie。
+
+回退应用可切回上一提交，保留新增表／列，不执行破坏性数据库降级。旧应用不支持续期和即时会话撤销；回退期间既有 JWT 按旧逻辑在原到期时间失效。

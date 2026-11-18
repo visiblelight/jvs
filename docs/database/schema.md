@@ -15,9 +15,31 @@
 | hashed_password | String(255) | Not Null | — | bcrypt 哈希密码 |
 | is_active | Boolean | — | True | 是否启用 |
 | is_superuser | Boolean | — | False | 是否超级管理员 |
+| token_version | Integer | Not Null | 0 | 认证版本；改密、管理员重置密码／停用时递增，立即使旧 JWT 失效 |
 | created_at | DateTime | — | now() | 创建时间（UTC） |
 | avatar | String(255) | Nullable | null | 头像文件名 |
 | updated_at | DateTime | — | now() | 更新时间（UTC），自动更新 |
+
+---
+
+## auth_sessions — 登录会话表（Plan 026）
+
+仅存储续期凭证的 SHA-256 哈希；原始凭证只通过 HttpOnly Cookie 传输，不写入数据库、日志或 localStorage。
+
+| 字段 | 类型 | 约束 | 说明 |
+| --- | --- | --- | --- |
+| id | String(36) | PK | 随机会话 UUID，也是访问 JWT 的 sid |
+| user_id | Integer | Not Null, FK → users.id, ON DELETE CASCADE, Index | 所属账号 |
+| token_hash | String(64) | Not Null | 当前续期凭证哈希 |
+| previous_token_hash | String(64) | Nullable | 上一代凭证哈希 |
+| previous_valid_until | DateTime | Nullable | 上一代凭证的 30 秒并发宽限截止时间 |
+| created_at | DateTime | Not Null | 首次登录时间 |
+| last_used_at | DateTime | Not Null | 最近成功续期时间 |
+| idle_expires_at | DateTime | Not Null | 空闲到期时间，续期延长但不越过绝对期限 |
+| absolute_expires_at | DateTime | Not Null, Index | 首次登录后的固定绝对期限 |
+| revoked_at | DateTime | Nullable | 撤销时间；null 为未主动撤销，仍须检查两个期限 |
+
+时间列使用 UTCDateTime。默认空闲 30 天、绝对 90 天；退出撤销当前会话，改密／管理员重置密码／停用撤销全部会话。迁移 `c026a1b2c3d4` 从 `a2b3c4d5e6f7` 追加表与用户版本列，已有用户初始化为 0，不修改业务数据。旧版不带 sid/ver 的 JWT 仅在用户版本为 0 且自身尚未过期时兼容。
 
 ---
 

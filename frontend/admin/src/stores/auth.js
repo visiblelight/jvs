@@ -2,6 +2,8 @@ import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import { login as loginApi, getMe } from '@/api/auth'
 import router from '@/router'
+import { session } from '@/api/session'
+import { terminalAuthError, tokenClaims, sameSession } from '@/utils/session.mjs'
 import { flushEditors } from '@/utils/editorProtection.mjs'
 
 export const useAuthStore = defineStore('auth', () => {
@@ -21,10 +23,9 @@ export const useAuthStore = defineStore('auth', () => {
   async function login(username, password) {
     const { data } = await loginApi(username, password)
     token.value = data.access_token
-    localStorage.setItem('token', data.access_token)
     try { await fetchUser() }
     catch (error) {
-      if (localStorage.getItem('token') === data.access_token) clearSession()
+      if (terminalAuthError(error) && session.getToken() === data.access_token) clearSession()
       throw error
     }
   }
@@ -32,21 +33,29 @@ export const useAuthStore = defineStore('auth', () => {
   async function fetchUser(config) {
     const requestedToken = localStorage.getItem('token')
     const { data } = await getMe(config)
-    if (localStorage.getItem('token') !== requestedToken) throw new Error('登录账号已改变，请刷新页面')
+    const current = session.getToken()
+    if ((!sameSession(current, requestedToken) && current !== requestedToken) || Number(tokenClaims(current).sub) !== data.id) throw new Error('登录账号已改变，请刷新页面')
+    token.value = current || ''
     user.value = data
     avatarVersion.value = Date.now()
   }
 
-  function clearSession() {
+  function clearSession(expected = session.getToken()) {
+    if (!session.invalidate(expected)) return false
     token.value = ''
     user.value = null
-    localStorage.removeItem('token')
+    return true
   }
 
-  function logout() {
+  async function logout({ localOnly = false, reason } = {}) {
     if (!flushEditors()) return
-    clearSession()
-    router.push('/login')
+    try {
+      if (localOnly) clearSession()
+      else { await session.logout(); token.value = ''; user.value = null }
+      await router.push({ path: '/login', query: reason ? { reason } : {} })
+    } catch {
+      window.alert('退出登录未完成，请检查网络后重试。')
+    }
   }
 
   return { token, user, avatarVersion, isSuperuser, modules, canAccess, login, fetchUser, logout, clearSession }

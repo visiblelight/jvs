@@ -55,4 +55,6 @@ def test_upgrade_preserves_data_and_matches_models(migration_url):
     with engine.connect() as conn:
         assert conn.scalar(text("SELECT title FROM todo_items WHERE id=1")) == "keep todo"
         assert conn.scalar(text("SELECT period_key FROM tick_logs WHERE id=1")) == "2026-04-01"
+        assert conn.scalar(text("SELECT token_version FROM users WHERE id=1")) == 0
+        assert conn.scalar(text("SELECT COUNT(*) FROM auth_sessions")) == 0
     engine.dispose()
